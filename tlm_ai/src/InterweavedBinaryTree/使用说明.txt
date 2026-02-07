@@ -1,0 +1,56 @@
+使用说明（交织二叉树 InterweavedBinaryTree）
+
+概述
+- 交织二叉树用于将多维二进制张量的“值为 1 的元素索引”按位交织为单一比特串，并以压缩二叉前缀树（Patricia Trie）存储。
+- 支持 CPU 侧的构建、查询与矩阵-向量乘法（OR 聚合），并提供 CUDA 并行乘法。
+
+核心概念
+- 位交织：按从高位到低位的“位平面”，逐层（维度）交替抽取该位，形成整体比特串。
+- 压缩前缀：树节点记录一段公共前缀，比传统逐位节点更省内存且更利于批量构建与遍历。
+
+文件
+- InterweavedBinaryTree.h / .cpp：CPU 实现与统一接口
+- InterweavedBinaryTree.cu：CUDA 上传/并行乘法/结果下载
+
+快速上手（CPU）
+1) 定义规格（以矩阵为例：行 18 位，列 18 位；总 36 位）：
+   BitsSpec spec{ std::vector<uint32_t>{18, 18}, 2, 36 };
+   ibt::InterweavedBinaryTree mat(spec);
+
+2) 将稀疏矩阵的“1 元素”索引插入：
+   // 行、列的自然索引（MSB→LSB 对齐）
+   uint64_t row = ...; // [0, 2^18)
+   uint64_t col = ...; // [0, 2^18)
+   auto k = mat.encode64({row, col});
+   mat.insert64(k);
+   // 批量时建议先收集 k 并排序后调用 build_from_sorted_keys64
+
+3) 构造稀疏向量（同样用该结构，L=1）：
+   BitsSpec vspec{ std::vector<uint32_t>{18}, 1, 18 };
+   ibt::InterweavedBinaryTree vec(vspec);
+   auto vk = vec.encode64({col});
+   vec.insert64(vk);
+
+4) 进行矩阵-向量乘法（OR 聚合）：
+   ibt::InterweavedBinaryTree out = ibt::InterweavedBinaryTree::matvec_or_cpu(mat, vec);
+   // out 的规格为 L=1，位数等于行位数，包含所有“输出为 1 的行”索引
+
+快速上手（GPU）
+1) 使用相同的 mat / vec 构造。
+2) 调用：
+   ibt::InterweavedBinaryTree out = ibt::InterweavedBinaryTree::matvec_or_gpu(mat, vec);
+3) 内部会自动：
+   - 将 mat/vec 导出为 64 位交织键数组并上传到设备
+   - 并行检查向量命中列索引，原子设置行位图
+   - 下载行索引并构建输出树
+
+性能与内存优化建议
+- 总位数 <=64 时走 uint64_t 快速路径，避免 128 位运算。
+- 批量构建：先生成所有键并排序，再调用 build_from_sorted_keys64，能显著减少节点分裂。
+- 稀疏向量：GPU 端采用二分搜索检查列命中，建议将向量键排序后上传。
+- 极大行数时（如 2^27），行位图占用约 16MB（2^27 bits），请预留显存。
+
+注意
+- 当前实现聚焦 64 位总长度；>64 位可扩展（Key128 接口已准备），但未默认开启。
+- 交织顺序为按位平面从高到低，平面内依次遍历各层（维度）。
+
