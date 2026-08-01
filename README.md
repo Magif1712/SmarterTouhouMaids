@@ -1,7 +1,9 @@
-# Urana(一开始名为BNN_FPB)
-研究如何把更聪明的NPC带到元宇宙里来，这里主要是AI研究。
-先暂且把本地运行的《我的世界》当作元宇宙。
-这些程序是“觉前行”的相对具体的python程序，
-将上述所有.py文件放到同一个空文件夹里，以非全屏方式打开一个《我的世界》客户端，新建一个世界，进入新建的世界，然后运行"中央枢纽.py"即可启动。
-由于当前程序没做好优化，几乎无法正常运行，可以说这些.py文件仅提供参考。
-该项目目前正在研究中。
+# Smarter Touhou Maids
+
+基于 TartaricAcid 的 [TLMAdditionExample](https://github.com/TartaricAcid/TLMAdditionExample) 模板创建的 Touhou Little Maid 附属模组。
+
+## 协议
+
+本项目基于 MIT 协议开源，详见 [LICENSE](LICENSE)。
+
+模板来源声明详见 [THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES)。
