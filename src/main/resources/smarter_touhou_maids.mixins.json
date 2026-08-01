@@ -1,0 +1,16 @@
+{ 
+   "required": true, 
+   "minVersion": "0.8", 
+   "package": "com.github.magif1712.smarter_touhou_maids.mixin", 
+   "compatibilityLevel": "JAVA_17", 
+   "refmap": "smarter_touhou_maids.refmap.json", 
+   "mixins": [
+     "MobServerAiStepSuppressMixin"
+   ], 
+   "client": [ 
+     "GameRendererMixin" 
+   ], 
+   "injectors": { 
+     "defaultRequire": 1 
+   } 
+ }

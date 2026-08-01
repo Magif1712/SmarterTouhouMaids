@@ -1,0 +1,173 @@
+package com.github.magif1712.smarter_touhou_maids.features.smarter.agent;
+
+import com.github.magif1712.smarter_touhou_maids.features.maid.compat.task.AutoTask;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.core.PossessionManager;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.Registry;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryEntry;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryIds;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryManager;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.state.MaidSmarterState;
+import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.UUID;
+
+/**
+ * smarter 模式的客户端入口与生命周期容器（薄容器，委托 {@link IAgent} 执行业务逻辑）。
+ * <p>
+ * 本类是 Forge 事件总线接入点（{@link #onClientTick}）与渲染钩子接入点
+ * （{@link #onPostRender}），负责：
+ * <ul>
+ *   <li>smarter 就绪生命周期管理：smarterReady（=maid 任务模式为自动任务，{@link AutoTask#isAutoTask}）
+ *       变化触发 init / shutdown</li>
+ *   <li>从 {@link RegistryIds#AGENT} 顶层 registry 查 factory 创建 agent（工厂自驱组装下层）</li>
+ *   <li>委托 agent 执行 onClientTick / onPostRender（经 {@link IAgent#isActive()} 守卫）</li>
+ *   <li>激活状态 sync：agent isActive 边界变化时 sync 到服务端（替代旧 smarter UI 开关 sync）</li>
+ * </ul>
+ * <p>
+ * <b>启用 vs 激活</b>（真善美第2条）：
+ * <ul>
+ *   <li><b>启用</b>（smarterReady）= maid 任务模式为"自动任务"（通用，{@link AutoTask#isAutoTask}）。
+ *       maid.getTask 经 SynchedEntityData 自动双端同步，客户端可靠读取；不再有独立 UI 开关。</li>
+ *   <li><b>激活</b>（active）= agent 自决（{@link IAgent#isActive()}，特有）。
+ *       ReflexArcSystemAgent 因依赖附身前置而 active=附身；其他 agent 可直接 active=true。</li>
+ * </ul>
+ * 服务端 {@code MobServerAiStepSuppressMixin} 只读 sync 后的激活标量，不依赖下层激活条件
+ * （真善美第3条：换 agent 激活条件时服务端零改动）。
+ * <p>
+ * <b>maid 来源</b>：ReflexArcSystemAgent 依赖附身获取 maid（其 PossessionSensor 需 maid 采集视觉），
+ * 故 {@code getPossessedMaid} 是 ReflexArcSystemAgent 特有的 maid 来源。未来不依赖附身的 agent
+ * 需抽象 maid 来源，此处为渐进点（上层 smarterReady/active 判断不耦合 maid 来源）。
+ * <p>
+ * 本类只关心"何时创建/销毁 agent、何时委托执行"。视觉采集、AI 运行、效应器解码、发包、
+ * 调试开关等都是 agent 的内部模式，不属本类。附属 agent 的 debug hook 通过
+ * {@link #getAgent()} 获取当前 agent 实例并自行向下转型访问。
+ */
+@OnlyIn(Dist.CLIENT)
+public class SmarterClientService {
+
+    public static final SmarterClientService INSTANCE = new SmarterClientService();
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("ReflexArcSystem");
+
+    private IAgent agent;
+    private boolean initialized = false;
+    /** 上一 tick 的 smarter 就绪状态，检测 true→false 触发 shutdown。 */
+    private boolean wasSmarterReady = false;
+    /** 上一 tick 的 agent 激活状态，检测边界变化触发 sync。 */
+    private boolean wasActive = false;
+    /** 最后一次 sync 的 maidUUID，供 shutdown 时 sync active=false（此时 maid 可能已 null）。 */
+    private UUID lastMaidUUID = null;
+
+    @SubscribeEvent
+    public void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+
+        EntityMaid maid = PossessionManager.INSTANCE.getPossessedMaid();
+        // smarter 就绪 = maid 任务模式为"自动任务"（maid 来源=附身，getPossessedMaid，
+        // ReflexArcSystemAgent 特有，渐进点）。maid.getTask() 经 SynchedEntityData 自动双端同步，
+        // 客户端可靠读取（不依赖不同步的 persistentData）。未附身时 getPossessedMaid 返回 null →
+        // isAutoTask=false → smarterReady=false（agent 不创建，原版 AI 正常）。
+        boolean smarterReady = AutoTask.isAutoTask(maid);
+
+        // 生命周期：smarterReady 边界变化触发 init / shutdown。
+        // false→true：init 创建 agent（工厂自驱组装下层各层）；
+        // true→false：shutdown 销毁 agent 并 sync active=false。
+        if (!wasSmarterReady && smarterReady) {
+            init();
+        }
+        if (wasSmarterReady && !smarterReady) {
+            shutdown();
+        }
+        wasSmarterReady = smarterReady;
+
+        if (!smarterReady || agent == null) {
+            return;
+        }
+
+        // 记录 maidUUID 供 shutdown 时 sync active=false（取消附身后 maid 可能立即 null）。
+        lastMaidUUID = maid.getUUID();
+
+        // 激活 sync：isActive 边界变化时 sync 到服务端（替代旧 smarter UI 开关 sync）。
+        // 服务端 MobServerAiStepSuppressMixin 据此决定是否抑制原版 AI。
+        boolean active = agent.isActive();
+        if (wasActive != active) {
+            PossessionManager.INSTANCE.setSmarterModeEnabled(maid, active);
+            wasActive = active;
+        }
+        if (!active) {
+            // 未激活（如未附身）不 tick：原版 AI 正常，smarter 不发包。
+            return;
+        }
+        agent.onClientTick();
+    }
+
+    public void onPostRender(int textureId, int texWidth, int texHeight) {
+        // init 由 onClientTick 的 smarterReady 触发（避免未就绪时懒创建 agent）。
+        // onPostRender 仅在已初始化 + 激活时委托采集视觉（与 onClientTick 守卫一致）。
+        // 若 onPostRender 先于首 tick（渲染钩子早于 tick），首帧跳过采集，下 tick init 后恢复。
+        if (initialized && agent != null && agent.isActive()) {
+            agent.onPostRender(textureId, texWidth, texHeight);
+        }
+    }
+
+    private void init() {
+        LOGGER.info("[ReflexArc] 初始化 ReflexArcSystem...");
+        EntityMaid maid = PossessionManager.INSTANCE.getPossessedMaid();
+
+        // 组装 config：复制 maid 的 AiModes（各层 mode id）+ urana 节律参数。
+        // maid 为 null 时 config 为空，registry.resolve("") fallback 到各层默认 entry（旧存档兼容）。
+        CompoundTag config = new CompoundTag();
+        if (maid != null) {
+            config.merge(MaidSmarterState.getAiModes(maid));
+            config.putLong("FastMinDtMillis", PossessionManager.INSTANCE.getFastMinDtMillis(maid));
+            config.putLong("SlowMinDtMillis", PossessionManager.INSTANCE.getSlowMinDtMillis(maid));
+        }
+
+        // 工厂自驱组装：外周只调顶层 agent factory，下层（ai→process→nn）组装自驱。
+        // config 透传，各层 factory 各取所需（真善美第1条"真"：每层只读自己需要的 key）。
+        Registry<?> agentRegistry = RegistryManager.INSTANCE.get(RegistryIds.AGENT);
+        RegistryEntry<?> agentEntry = agentRegistry.resolve(config.getString(RegistryIds.AGENT.toString()));
+        AgentFactory agentFactory = (AgentFactory) agentEntry.getFactory();
+        this.agent = agentFactory.create(config);
+        this.agent.awaken();
+
+        this.initialized = true;
+        LOGGER.info("[ReflexArc] 初始化完成");
+    }
+
+    public void shutdown() {
+        if (!initialized) return;
+        LOGGER.info("[ReflexArc] 关闭 ReflexArcSystem...");
+        // 先 sync active=false（确保服务端恢复原版 AI），用 lastMaidUUID（此时 getPossessedMaid 可能已 null）。
+        // 经 PossessionManager.setSmarterModeEnabled(UUID,...) 发包，服务端 MaidSmarterState.setEnabled(false)，
+        // MobServerAiStepSuppressMixin 放行 serverAiStep，原版 AI 复原。
+        if (wasActive && lastMaidUUID != null) {
+            PossessionManager.INSTANCE.setSmarterModeEnabled(lastMaidUUID, false);
+            wasActive = false;
+        }
+        if (agent != null) {
+            agent.shutdown();
+            agent = null;
+        }
+        initialized = false;
+        lastMaidUUID = null;
+    }
+
+    /**
+     * 获取当前 agent 实例（供 debug hook 向下转型访问 agent 内部状态）。
+     * 未就绪时返回 null。
+     */
+    public IAgent getAgent() {
+        return agent;
+    }
+
+    private SmarterClientService() {
+    }
+}

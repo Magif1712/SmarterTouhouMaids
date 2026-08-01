@@ -1,0 +1,207 @@
+buildscript {
+    repositories {
+        maven {
+            name = "Sponge"
+            url = "https://repo.spongepowered.org/repository/maven-public/"
+        }
+    }
+    dependencies {
+        classpath group: 'org.spongepowered', name: 'mixingradle', version: '0.7-SNAPSHOT'
+    }
+}
+
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
+    id 'org.parchmentmc.librarian.forgegradle' version '1.+'
+}
+
+apply plugin: 'org.spongepowered.mixin'
+
+group = mod_group_id
+version = mod_version
+archivesBaseName = "${mod_id}-${minecraft_version}-forge"
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
+}
+
+minecraft {
+    mappings channel: mapping_channel, version: mapping_version
+    // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
+    copyIdeResources = true
+    runs {
+        configureEach {
+            jvmArgs = [
+                    "-XX:+IgnoreUnrecognizedVMOptions",
+                    "-XX:+AllowEnhancedClassRedefinition"
+            ]
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+        client {
+            property 'forge.enabledGameTestNamespaces', mod_id
+        }
+        server {
+            property 'forge.enabledGameTestNamespaces', mod_id
+            args '--nogui'
+        }
+        gameTestServer {
+            property 'forge.enabledGameTestNamespaces', mod_id
+        }
+        data {
+            workingDirectory project.file('run')
+            args '--mod', mod_id, '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+        }
+    }
+}
+
+mixin {
+    add sourceSets.main, "smarter_touhou_maids.refmap.json"
+    config "smarter_touhou_maids.mixins.json"
+}
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+repositories {
+    maven {
+        url "https://cursemaven.com"
+        content {
+            includeGroup "curse.maven"
+        }
+    }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    // 目前只有 CurseForge Maven 能够支持同时下载模组和源码，方便开发
+    // Current Only CurseForge Maven can support downloading both mod and source code, which is convenient for development
+    implementation fg.deobf('curse.maven:touhou-little-maid-355044:6613821-sources-6613853')
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+}
+
+processResources {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            forge_version          : forge_version,
+            forge_version_range    : forge_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors,
+            mod_description        : mod_description
+    ]
+    inputs.properties replaceProperties
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+        expand replaceProperties + [project: project]
+    }
+
+    // 这一段负责把原生库“打进 jar 资源里”，否则运行时无法从 mod jar 里直接 System.load()。
+    // NativeLibLoader 会优先尝试从 jar 内的 /natives/<os>-<arch>/ 下解压并加载；
+    // 如果这里没有把对应平台的 .dll/.so/.dylib 放进 jar，那么该平台就会回退到其它加载方式（或加载失败）。
+    //
+    // 默认原生工程路径: native/stm_ai
+    // 也可以在构建时覆盖:
+    //   gradlew build -PstmAiNativeDir=path/to/native/stm_ai
+    def nativeRoot = project.findProperty("stmAiNativeDir") != null ? file(project.property("stmAiNativeDir").toString()) : file("native/stm_ai")
+    def nativeBuild = new File(nativeRoot, "build")
+
+    // 下面是“候选路径表”：只要其中某个文件存在，就会被注入到 jar 的 natives/<target>/ 目录。
+    // 你以后把 Linux/macOS 的产物也放进这些路径之一，就能自动实现“单 jar 即可运行”（同 NativeAiBackend 的资源加载规则）。
+    def artifacts = [
+            "windows-x86_64" : [
+                    new File(nativeBuild, "Release/stm_ai.dll"),
+                    new File(nativeBuild, "windows-x86_64/Release/stm_ai.dll"),
+                    new File(nativeBuild, "windows/x86_64/Release/stm_ai.dll"),
+            ],
+            "windows-aarch64": [
+                    new File(nativeBuild, "windows-aarch64/Release/stm_ai.dll"),
+                    new File(nativeBuild, "windows/arm64/Release/stm_ai.dll"),
+            ],
+            "linux-x86_64"   : [
+                    new File(nativeBuild, "linux-x86_64/libstm_ai.so"),
+                    new File(nativeBuild, "linux-x86_64/Release/libstm_ai.so"),
+                    new File(nativeBuild, "linux/x86_64/Release/libstm_ai.so"),
+                    new File(nativeBuild, "libstm_ai.so"),
+            ],
+            "linux-aarch64"  : [
+                    new File(nativeBuild, "linux-aarch64/libstm_ai.so"),
+                    new File(nativeBuild, "linux-aarch64/Release/libstm_ai.so"),
+                    new File(nativeBuild, "linux/arm64/Release/libstm_ai.so"),
+            ],
+            "macos-x86_64"   : [
+                    new File(nativeBuild, "macos-x86_64/libstm_ai.dylib"),
+                    new File(nativeBuild, "macos-x86_64/Release/libstm_ai.dylib"),
+                    new File(nativeBuild, "macos/x86_64/Release/libstm_ai.dylib"),
+                    new File(nativeBuild, "libstm_ai.dylib"),
+            ],
+            "macos-aarch64"  : [
+                    new File(nativeBuild, "macos-aarch64/libstm_ai.dylib"),
+                    new File(nativeBuild, "macos-aarch64/Release/libstm_ai.dylib"),
+                    new File(nativeBuild, "macos/arm64/Release/libstm_ai.dylib"),
+            ],
+    ]
+
+    artifacts.each { target, candidates ->
+        def chosen = candidates.find { it.exists() }
+        if (chosen != null) {
+            from(chosen) {
+                into "natives/${target}"
+            }
+        }
+    }
+}
+
+jar {
+    manifest {
+        attributes([
+                "Implementation-Title"  : project.name,
+                "Implementation-Version": "${version}"
+        ])
+    }
+    finalizedBy 'reobfJar'
+}
+
+task cmake(type: Exec) {
+    environment "JAVA_HOME", System.getProperty("java.home")
+    workingDir 'native/stm_ai'
+    commandLine 'cmake', '-S', '.', '-B', 'build'
+}
+
+task cmakeBuild(type: Exec) {
+    dependsOn cmake
+    workingDir 'native/stm_ai'
+    commandLine 'cmake', '--build', 'build', '--config', 'Release'
+}
+
+// 确保 runClient / build 之前，原生库总是被重新编译并打包进资源。
+// 否则 NativeLibLoader 会从 jar 内加载到旧版本的 stm_ai.dll，导致 native 层修改不生效。
+processResources.dependsOn cmakeBuild
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+tasks.compileJava {
+    // 防止没有自动生成refmap.json
+    outputs.upToDateWhen { false }
+}
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}
