@@ -1,8 +1,6 @@
 package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.panels;
 
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.SmarterLayerWalker;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.param.BoolParamOption;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.param.LongParamOption;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.param.ParamOption;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.param.ParamPanelProvider;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.IConfigPanel;
@@ -24,12 +22,15 @@ import java.util.List;
  * 运行参数面板：遍历 smarter 模式各层选中的 entry，从每层 factory 的 {@link ParamPanelProvider}
  * 汇总参数项渲染（per-maid）。
  * <p>
- * <b>值类型多态渲染</b>（真善美第2条）：ParamOption 是 sealed 契约，本 Panel 按值类型分支：
- * <ul>
- *   <li>{@link LongParamOption} → EditBox，commitPending 时 parse long（数值参数如快/慢环 minDt）。</li>
- *   <li>{@link BoolParamOption} → CycleButton.onOff，即时 commit（布尔开关如允许附身）。</li>
- * </ul>
- * 新增值类型只需新增一个渲染分支（sealed 穷尽性保证不遗漏）。
+ * <b>纯 text 透传</b>（真善美第4条）：本 Panel 不感知值类型——不 parse、不 clamp。
+ * 提交时调 {@link ParamOption#commitText} 传入 text，回显时调 {@link ParamOption#currentText}
+ * 取管道中的 String。解读 + 约束由 factory 在 textProcessor 中负责。
+ * <p>
+ * <b>按 controlHint 分派控件</b>（真善美第2条）：控件选择是 config_gui 的内部事务。
+ * factory 经 {@link ParamOption#controlHint} 声明建议控件，本 Panel 据此分派：
+ * "toggle" → CycleButton 即点即提交，其余 → EditBox 兜底（含 "text" 与未知 hint）。
+ * 附属 config_gui 可定义不同 hint 集合，管道与 factory 零改动。
+ * hint 是参数项的静态展示属性（与 label/tooltip 同性质），不进 ParamStore、不进网络包。
  * <p>
  * <b>随各层模式动态切换</b>：选 process=urana → UranaProcessFactory 暴露快/慢环参数；
  * 选 agent=reflex_arc → ReflexArcSystemAgentFactory 暴露允许附身开关。
@@ -39,8 +40,7 @@ import java.util.List;
  * 本类只关心"拿到 factory 后渲染控件"，不重复遍历算法（真善美第2条：C 中一个模式 D 中也一个）。
  * <p>
  * <b>commit 时机</b>：EditBox 靠 {@link #commitPending()} 在 removed/rebuildWidgets/ENTER 时提交。
- * CycleButton 即时 commit（onChange 调 setter），不经 pendingBoxes。Screen 统一在 rebuildWidgets
- * 前调各 Panel commitPending，防丢 EditBox 输入。
+ * Screen 统一在 rebuildWidgets 前调各 Panel commitPending，防丢 EditBox 输入。
  */
 @OnlyIn(Dist.CLIENT)
 public class RuntimeParamsPanel implements IConfigPanel {
@@ -64,7 +64,7 @@ public class RuntimeParamsPanel implements IConfigPanel {
     }
 
     /**
-     * 从 factory 提取参数项并按值类型渲染。
+     * 从 factory 提取参数项并渲染。全部用 EditBox（普适兜底）。
      * factory 不实现 ParamPanelProvider 时跳过（该层无可调参数）。
      */
     private void addParamsFromFactory(EntityMaid maid, PanelContext ctx, VerticalStack stack,
@@ -74,64 +74,60 @@ public class RuntimeParamsPanel implements IConfigPanel {
         }
         List<ParamOption> params = ((ParamPanelProvider) factory).getParamOptions();
         for (ParamOption opt : params) {
-            // sealed 穷尽：LongParamOption / BoolParamOption（新增值类型时编译器强制补分支）
-            if (opt instanceof LongParamOption lpo) {
-                addLongParam(maid, ctx, stack, lpo);
-            } else if (opt instanceof BoolParamOption bpo) {
-                addBoolParam(maid, stack, bpo);
-            }
+            addParam(maid, ctx, stack, opt);
         }
     }
 
-    /** 数值参数 → EditBox，commitPending 时 parse long。 */
-    private void addLongParam(EntityMaid maid, PanelContext ctx, VerticalStack stack, LongParamOption opt) {
+    /**
+     * 按 controlHint 分派控件（真善美第2条：控件选择是 config_gui 内部事务）。
+     * standard_config_gui 认识的 hint 在此 case，未知 hint 降级 EditBox 兜底。
+     * 附属 config_gui 可定义不同 hint 集合，管道与 factory 零改动。
+     */
+    private void addParam(EntityMaid maid, PanelContext ctx, VerticalStack stack, ParamOption opt) {
+        switch (opt.controlHint()) {
+            case "toggle" -> addToggleParam(maid, stack, opt);
+            default -> addTextParam(maid, ctx, stack, opt);  // 兜底含 "text" 与未知
+        }
+    }
+
+    /** boolean 开关 → CycleButton on/off，即点即提交（不进 pending，与 EditBox 延迟提交并存）。 */
+    private void addToggleParam(EntityMaid maid, VerticalStack stack, ParamOption opt) {
+        ConfigRow row = stack.addRow();
+        boolean current = Boolean.parseBoolean(opt.currentText(maid));
+        CycleButton<Boolean> btn = CycleButton.onOffBuilder(current)
+                .create(row.x(), row.y(), 200, 20, opt.label(),
+                        (b, v) -> opt.commitText(maid, String.valueOf(v)));
+        btn.setTooltip(Tooltip.create(opt.tooltip()));
+        row.addWidget(btn);
+    }
+
+    /** 文本输入参数 → EditBox，commitPending 时经 commitText 提交（不 parse 不 clamp）。 */
+    private void addTextParam(EntityMaid maid, PanelContext ctx, VerticalStack stack, ParamOption opt) {
         ConfigRow row = stack.addRow();
         EditBox box = new EditBox(ctx.font, row.x(), row.y(), 200, 20, opt.label());
-        box.setValue(String.valueOf(opt.get(maid)));
+        box.setValue(opt.currentText(maid));
         box.setTooltip(Tooltip.create(opt.tooltip()));
         row.addWidget(box);
         pendingBoxes.add(new ParamBox(maid, opt, box));
-    }
-
-    /** 布尔开关 → CycleButton.onOff，onChange 即时 commit（不经 pending）。 */
-    private void addBoolParam(EntityMaid maid, VerticalStack stack, BoolParamOption opt) {
-        ConfigRow row = stack.addRow();
-        CycleButton<Boolean> btn = CycleButton.onOffBuilder(opt.get(maid))
-                .create(row.x(), row.y(), 200, 20, opt.label(),
-                        (b, value) -> opt.set(maid, value));
-        if (opt.tooltip() != null) {
-            btn.setTooltip(Tooltip.create(opt.tooltip()));
-        }
-        row.addWidget(btn);
     }
 
     @Override
     public void commitPending() {
         for (ParamBox pb : pendingBoxes) {
             String trimmed = pb.box.getValue().trim();
-            if (trimmed.isEmpty()) {
-                continue;
-            }
-            try {
-                long parsed = Long.parseLong(trimmed);
-                long value = Math.max(0, Math.min(5000, parsed));
-                String normalized = String.valueOf(value);
-                if (!normalized.equals(pb.box.getValue())) {
-                    pb.box.setValue(normalized);
-                }
-                pb.option.set(pb.maid, value);
-            } catch (NumberFormatException ignored) {
+            if (!trimmed.isEmpty()) {
+                pb.option.commitText(pb.maid, trimmed);
             }
         }
     }
 
-    /** 缓存 EditBox + maid + LongParamOption，供 commitPending 提交。 */
+    /** 缓存 EditBox + maid + ParamOption，供 commitPending 提交。 */
     private static final class ParamBox {
         final EntityMaid maid;
-        final LongParamOption option;
+        final ParamOption option;
         final EditBox box;
 
-        ParamBox(EntityMaid maid, LongParamOption option, EditBox box) {
+        ParamBox(EntityMaid maid, ParamOption option, EditBox box) {
             this.maid = maid;
             this.option = option;
             this.box = box;

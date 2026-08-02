@@ -3,15 +3,14 @@ package com.github.magif1712.smarter_touhou_maids.network;
 import com.github.magif1712.smarter_touhou_maids.SmarterTouhouMaids;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.network.ClientboundMaidDataSyncPacket;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.network.ClientboundPossessionSyncPacket;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.effector.network.ServerboundActionIntentPacket;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.network.ServerboundPossessionRequestPacket;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.network.ServerboundSetPossessionEnabledPacket;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ClientboundAiModeSyncPacket;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ClientboundMinDtMillisSyncPacket;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ClientboundParamSyncPacket;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ClientboundSmarterModeSyncPacket;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ServerboundActionIntentPacket;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ServerboundSetAiModePacket;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ServerboundBehaviorSyncPacket;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ServerboundSetMinDtMillisPacket;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ServerboundSetParamPacket;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ServerboundSetSmarterModePacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkRegistry;
@@ -52,20 +51,17 @@ public final class NetworkHandler {
                 ClientboundSmarterModeSyncPacket::decode,
                 ClientboundSmarterModeSyncPacket::handle);
 
-        INSTANCE.registerMessage(index++, ServerboundBehaviorSyncPacket.class,
-                ServerboundBehaviorSyncPacket::encode,
-                ServerboundBehaviorSyncPacket::decode,
-                ServerboundBehaviorSyncPacket::handle);
+        // 通用 per-maid 参数：客户端 → 服务端 设置某参数值（nbtKey → longValue）
+        INSTANCE.registerMessage(index++, ServerboundSetParamPacket.class,
+                ServerboundSetParamPacket::encode,
+                ServerboundSetParamPacket::decode,
+                ServerboundSetParamPacket::handle);
 
-        INSTANCE.registerMessage(index++, ServerboundSetMinDtMillisPacket.class,
-                ServerboundSetMinDtMillisPacket::encode,
-                ServerboundSetMinDtMillisPacket::decode,
-                ServerboundSetMinDtMillisPacket::handle);
-
-        INSTANCE.registerMessage(index++, ClientboundMinDtMillisSyncPacket.class,
-                ClientboundMinDtMillisSyncPacket::encode,
-                ClientboundMinDtMillisSyncPacket::decode,
-                ClientboundMinDtMillisSyncPacket::handle);
+        // 通用 per-maid 参数：服务端 → 客户端 同步确认
+        INSTANCE.registerMessage(index++, ClientboundParamSyncPacket.class,
+                ClientboundParamSyncPacket::encode,
+                ClientboundParamSyncPacket::decode,
+                ClientboundParamSyncPacket::handle);
 
         // 效应器：客户端 → 服务端 发送解码后的操作要求
         INSTANCE.registerMessage(index++, ServerboundActionIntentPacket.class,

@@ -1,6 +1,6 @@
 package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.panels;
 
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.core.PossessionManager;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.SmarterClientState;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.Registry;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryEntry;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryIds;
@@ -61,7 +61,7 @@ public class ModeSelectorPanel implements IConfigPanel {
         if (registry == null) {
             return; // 附属未注册此层，跳过
         }
-        ResourceLocation currentId = PossessionManager.INSTANCE.getMode(maid, registryId);
+        ResourceLocation currentId = SmarterClientState.INSTANCE.getMode(maid, registryId);
         if (currentId == null) {
             currentId = registry.getDefaultId();
         }
@@ -73,7 +73,7 @@ public class ModeSelectorPanel implements IConfigPanel {
                 .create(row.x(), row.y(), 200, 20,
                         registryTitle(registryId),
                         (b, selectedId) -> {
-                            PossessionManager.INSTANCE.setMode(maid, registryId, selectedId);
+                            SmarterClientState.INSTANCE.setMode(maid, registryId, selectedId);
                             ctx.rebuildTrigger.run();
                         });
         row.addWidget(btn);
@@ -90,7 +90,7 @@ public class ModeSelectorPanel implements IConfigPanel {
         if (registry == null) {
             return; // 附属未注册此层，跳过
         }
-        ResourceLocation currentId = PossessionManager.INSTANCE.getMode(maid, registryId);
+        ResourceLocation currentId = SmarterClientState.INSTANCE.getMode(maid, registryId);
         if (currentId == null) {
             currentId = registry.getDefaultId();
         }
@@ -102,7 +102,7 @@ public class ModeSelectorPanel implements IConfigPanel {
                 .create(row.x(), row.y(), 200, 20,
                         registryTitle(registryId),
                         (b, selectedId) -> {
-                            PossessionManager.INSTANCE.setMode(maid, registryId, selectedId);
+                            SmarterClientState.INSTANCE.setMode(maid, registryId, selectedId);
                             ctx.rebuildTrigger.run();
                         });
         row.addWidget(btn);

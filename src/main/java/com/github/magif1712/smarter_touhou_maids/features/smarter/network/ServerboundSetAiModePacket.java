@@ -23,7 +23,7 @@ import java.util.function.Supplier;
  * 服务端校验 owner 后写入 maid NBT（{@link MaidSmarterState#setModeId}），
  * 并回 {@link ClientboundAiModeSyncPacket} 确认。模式更改下次附身生效（与 fast/slowMinDt 一致）。
  * <p>
- * 参照 {@link ServerboundSetMinDtMillisPacket}，(long, long) → (ResourceLocation, ResourceLocation) 变体。
+ * 参照 {@link ServerboundSetParamPacket}，(String, long) → (ResourceLocation, ResourceLocation) 变体。
  */
 public class ServerboundSetAiModePacket {
     private final UUID maidUUID;

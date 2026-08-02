@@ -15,21 +15,10 @@ public final class MaidSmarterState {
      * 边界变化时 sync 写入（经 ServerboundSetSmarterModePacket）。NBT key 保留兼容旧存档。
      * <p>
      * 服务端 {@code MobServerAiStepSuppressMixin} 读此值决定是否 cancel serverAiStep
-     * （抑制原版 AI）；{@code ServerboundActionIntentPacket}/{@code ServerboundBehaviorSyncPacket}
+     * （抑制原版 AI）；{@code ServerboundActionIntentPacket}
      * 读此值校验放行。
      */
     private static final String KEY_SMARTER_ON_POSSESSION = "SmarterOnPossession";
-    private static final String KEY_BEHAVIOR = "Behavior";
-    /**
-     * Urana 快环最小轮间间隔（毫秒）。0=不限速（默认，全速运转）；>0=两轮间至少间隔该值。
-     * per-maid 持久化，由 GUI 配置、awaken 启动时读取。
-     */
-    private static final String KEY_FAST_MIN_DT_MILLIS = "FastMinDtMillis";
-    /**
-     * Urana 慢环最小轮间间隔（毫秒）。0=不限速（默认，全速运转）；>0=两轮间至少间隔该值。
-     * per-maid 持久化，由 GUI 配置、awaken 启动时读取。
-     */
-    private static final String KEY_SLOW_MIN_DT_MILLIS = "SlowMinDtMillis";
 
     private MaidSmarterState() {}
 
@@ -50,78 +39,6 @@ public final class MaidSmarterState {
         CompoundTag data = maid.getPersistentData();
         CompoundTag modData = data.getCompound(SmarterTouhouMaids.MOD_ID);
         modData.putBoolean(KEY_SMARTER_ON_POSSESSION, enabled);
-        data.put(SmarterTouhouMaids.MOD_ID, modData);
-    }
-
-    public static void setBehavior(EntityMaid maid, long[] behavior) {
-        CompoundTag data = maid.getPersistentData();
-        CompoundTag modData = data.getCompound(SmarterTouhouMaids.MOD_ID);
-        modData.putLongArray(KEY_BEHAVIOR, behavior);
-        data.put(SmarterTouhouMaids.MOD_ID, modData);
-    }
-
-    public static long[] getBehavior(EntityMaid maid) {
-        try {
-            CompoundTag data = maid.getPersistentData();
-            if (data.contains(SmarterTouhouMaids.MOD_ID, 10)) {
-                CompoundTag modData = data.getCompound(SmarterTouhouMaids.MOD_ID);
-                if (modData.contains(KEY_BEHAVIOR, 12)) {
-                    return modData.getLongArray(KEY_BEHAVIOR);
-                }
-            }
-        } catch (Exception ignored) {}
-        return new long[4];
-    }
-
-    /**
-     * 读取该女仆的 Urana 快环最小轮间间隔（毫秒）。未设置时返回 0（不限速）。
-     */
-    public static long getFastMinDtMillis(EntityMaid maid) {
-        try {
-            CompoundTag data = maid.getPersistentData();
-            if (data.contains(SmarterTouhouMaids.MOD_ID, 10)) {
-                CompoundTag modData = data.getCompound(SmarterTouhouMaids.MOD_ID);
-                if (modData.contains(KEY_FAST_MIN_DT_MILLIS, 4)) {
-                    return modData.getLong(KEY_FAST_MIN_DT_MILLIS);
-                }
-            }
-        } catch (Exception ignored) {}
-        return 0;
-    }
-
-    /**
-     * 设置该女仆的 Urana 快环最小轮间间隔（毫秒）。
-     */
-    public static void setFastMinDtMillis(EntityMaid maid, long minDtMillis) {
-        CompoundTag data = maid.getPersistentData();
-        CompoundTag modData = data.getCompound(SmarterTouhouMaids.MOD_ID);
-        modData.putLong(KEY_FAST_MIN_DT_MILLIS, minDtMillis);
-        data.put(SmarterTouhouMaids.MOD_ID, modData);
-    }
-
-    /**
-     * 读取该女仆的 Urana 慢环最小轮间间隔（毫秒）。未设置时返回 0（不限速）。
-     */
-    public static long getSlowMinDtMillis(EntityMaid maid) {
-        try {
-            CompoundTag data = maid.getPersistentData();
-            if (data.contains(SmarterTouhouMaids.MOD_ID, 10)) {
-                CompoundTag modData = data.getCompound(SmarterTouhouMaids.MOD_ID);
-                if (modData.contains(KEY_SLOW_MIN_DT_MILLIS, 4)) {
-                    return modData.getLong(KEY_SLOW_MIN_DT_MILLIS);
-                }
-            }
-        } catch (Exception ignored) {}
-        return 0;
-    }
-
-    /**
-     * 设置该女仆的 Urana 慢环最小轮间间隔（毫秒）。
-     */
-    public static void setSlowMinDtMillis(EntityMaid maid, long minDtMillis) {
-        CompoundTag data = maid.getPersistentData();
-        CompoundTag modData = data.getCompound(SmarterTouhouMaids.MOD_ID);
-        modData.putLong(KEY_SLOW_MIN_DT_MILLIS, minDtMillis);
         data.put(SmarterTouhouMaids.MOD_ID, modData);
     }
 

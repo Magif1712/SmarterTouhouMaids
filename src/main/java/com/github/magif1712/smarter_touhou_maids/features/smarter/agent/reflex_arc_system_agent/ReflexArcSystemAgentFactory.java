@@ -3,7 +3,6 @@ package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_
 import com.github.magif1712.smarter_touhou_maids.features.maid.compat.task.AutoTask;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.AgentFactory;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.IAgent;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.param.BoolParamOption;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.param.ParamOption;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.param.ParamPanelProvider;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.AiFactory;
@@ -16,6 +15,7 @@ import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryEntry;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryIds;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryManager;
+import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 
@@ -43,13 +43,13 @@ import java.util.List;
 public class ReflexArcSystemAgentFactory implements AgentFactory, ParamPanelProvider {
 
     @Override
-    public IAgent create(CompoundTag config) {
+    public IAgent create(CompoundTag config, EntityMaid maid) {
         // === 查 AiRegistry 取下层 ai factory（自驱组装 process/nn）===
         Registry<?> aiRegistry = RegistryManager.INSTANCE.get(RegistryIds.AI);
         RegistryEntry<?> aiEntry = aiRegistry.resolve(config.getString(RegistryIds.AI.toString()));
         AiFactory aiFactory = (AiFactory) aiEntry.getFactory();
-        // 下层 ai factory 自驱组装其内部 process/nn（config 透传，各层各取所需）
-        IAiSystem ai = aiFactory.create(config);
+        // 下层 ai factory 自驱组装其内部 process/nn（config + maid 透传，各层各取所需）
+        IAiSystem ai = aiFactory.create(config, maid);
 
         // === 查 SensorRegistry 取下层 sensor factory（叶子，无递归）===
         Registry<?> sensorRegistry = RegistryManager.INSTANCE.get(RegistryIds.SENSOR);
@@ -71,17 +71,18 @@ public class ReflexArcSystemAgentFactory implements AgentFactory, ParamPanelProv
 
     @Override
     public List<ParamOption> getParamOptions() {
-        // "允许附身"是 ReflexArcSystemAgent 特有配置（PossessionSensor 前置）。
-        // getter/setter 复用 AutoTask 的 per-maid 持久化（NBT "PossessionEnabled"）。
+        // "允许附身"开关（per-maid 布尔）。getter/setter 复用 AutoTask 的 per-maid 持久化。
+        // boolean parse 直接在 lambda 里——太简单，不需要工具方法。
         // tooltip 用 Component.keybind 显示玩家实际绑定的附身键（改键后自动更新），
         // 并说明"附身后才激活 smarter AI"——避免玩家找不到附身方式或误以为开关即激活。
         return List.of(
-                BoolParamOption.onOff(
+                ParamOption.of(
                         Component.translatable("option.smarter_touhou_maids.allow_possession"),
                         Component.translatable(
                                 "option.smarter_touhou_maids.allow_possession.tooltip",
                                 Component.keybind("key.smarter_touhou_maids.possession")),
-                        AutoTask::isPossessionEnabled,
-                        AutoTask::setPossessionEnabled));
+                        maid -> String.valueOf(AutoTask.isPossessionEnabled(maid)),
+                        (maid, text) -> AutoTask.setPossessionEnabled(maid, Boolean.parseBoolean(text.trim())))
+                .withControlHint("toggle"));
     }
 }

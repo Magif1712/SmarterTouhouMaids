@@ -1,6 +1,7 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process;
 
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.INeuralNetwork;
+import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.nbt.CompoundTag;
 
 /**
@@ -13,14 +14,18 @@ import net.minecraft.nbt.CompoundTag;
  * （urana 用 InputVectorDomain.TOTAL_LENGTH 等），由本工厂算出后传给 nn factory。
  * nn factory 只接尺寸，不反向依赖 process 的 Domain。
  * <p>
- * <b>config 各取所需</b>：本工厂读 nnId + fastMinDt/slowMinDt（urana 节律参数，urana 特定），
- * 忽略 aiId 等上层 key。别的 process 实现读自己需要的 key。
+ * <b>config 各取所需</b>：本工厂读 nnId，忽略 aiId 等上层 key。别的 process 实现读自己需要的 key。
+ * <p>
+ * <b>per-maid 参数各取所需</b>（真善美第3条）：本工厂读自己声明的 per-maid 参数（如 urana 的快/慢环
+ * minDt），经 {@code ParamStore} 查 maid，nbtKey 由本工厂自备。外周不再硬编码这些 key 进 config——
+ * 换 process 时新 factory 自带自己的参数 key，外周与上层工厂零改动。
  */
 @FunctionalInterface
 public interface ProcessFactory {
     /**
-     * @param config 配置载体（含各层 mode id + 各层特定参数）。
+     * @param config 配置载体（含各层 mode id）。
+     * @param maid   目标女仆（供本 factory 经 ParamStore 读自己声明的 per-maid 参数）。
      * @return 创建好的 IProcessSystem 实例（已注入 nn，可交给上层 ai 工厂）。
      */
-    IProcessSystem create(CompoundTag config);
+    IProcessSystem create(CompoundTag config, EntityMaid maid);
 }

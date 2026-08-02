@@ -1,6 +1,5 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent;
 
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.core.PossessionManager;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.Registry;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryEntry;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryIds;
@@ -26,7 +25,7 @@ import java.util.function.BiConsumer;
  * <p>
  * <b>Factory 级别</b>：遍历的是 factory（注册时就存在，不依赖 agent 实例），故附身前即可调用。
  * <p>
- * <b>随各层模式动态切换</b>：每次调用都实时读 {@link PossessionManager#getMode} 获取当前选中 entry，
+ * <b>随各层模式动态切换</b>：每次调用都实时读 {@link SmarterClientState#getMode} 获取当前选中 entry，
  * ModeSelectorPanel 切换后 rebuildWidgets → 重新 walk → 各 Panel 拿到新 factory 列表 → 动态刷新。
  */
 public final class SmarterLayerWalker {
@@ -65,7 +64,7 @@ public final class SmarterLayerWalker {
         if (registry == null) {
             return; // 附属未注册此层，跳过
         }
-        ResourceLocation currentId = PossessionManager.INSTANCE.getMode(maid, registryId);
+        ResourceLocation currentId = SmarterClientState.INSTANCE.getMode(maid, registryId);
         if (currentId == null) {
             currentId = registry.getDefaultId();
         }
@@ -89,7 +88,7 @@ public final class SmarterLayerWalker {
         if (registry == null) {
             return; // 附属未注册此层，跳过
         }
-        ResourceLocation currentId = PossessionManager.INSTANCE.getMode(maid, registryId);
+        ResourceLocation currentId = SmarterClientState.INSTANCE.getMode(maid, registryId);
         if (currentId == null) {
             currentId = registry.getDefaultId();
         }

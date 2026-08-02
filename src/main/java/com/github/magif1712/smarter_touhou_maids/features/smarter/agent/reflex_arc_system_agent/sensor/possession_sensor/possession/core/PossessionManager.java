@@ -5,11 +5,6 @@ import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_a
 import com.github.magif1712.smarter_touhou_maids.network.NetworkHandler;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.network.ServerboundPossessionRequestPacket;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.network.ServerboundSetPossessionEnabledPacket;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ServerboundSetAiModePacket;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ServerboundSetMinDtMillisPacket;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ServerboundSetSmarterModePacket;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.state.MaidSmarterState;
-import com.github.magif1712.smarter_touhou_maids.network.NetworkHandler;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import com.mojang.logging.LogUtils;
 import net.minecraft.Util;
@@ -47,14 +42,6 @@ public class PossessionManager {
 
     private final ArrayDeque<UUID> pendingPossessionRequest = new ArrayDeque<>();
     private final HashMap<UUID, Boolean> pendingDataSync = new HashMap<>();
-    private final HashMap<UUID, Boolean> pendingSmarterSync = new HashMap<>();
-    private final HashMap<UUID, Long> pendingFastMinDtSync = new HashMap<>();
-    private final HashMap<UUID, Long> pendingSlowMinDtSync = new HashMap<>();
-    /**
-     * AI 模式选择 pending 缓存：key = maidUUID，value = Map<registryId, selectedId>。
-     * 一层选择一个 entry，层次无限。客户端已发但未收到服务端确认时读此缓存避免回显延迟期间读到旧值。
-     */
-    private final HashMap<UUID, Map<ResourceLocation, ResourceLocation>> pendingModeSync = new HashMap<>();
     private boolean ghostRecoveryPending = false;
 
     @Nullable
@@ -97,127 +84,6 @@ public class PossessionManager {
             LOGGER.warn("Failed to read possession NBT from maid {}", maid.getUUID(), e);
         }
         return PossessionConfig.enabled.get();
-    }
-
-    public void setSmarterModeEnabled(EntityMaid maid, boolean enabled) {
-        if (maid == null) return;
-        setSmarterModeEnabled(maid.getUUID(), enabled);
-    }
-
-    /**
-     * 按 UUID sync 激活状态（供 shutdown 时 maid 已 null 的场景，如取消附身后 getPossessedMaid 立即失效）。
-     * <p>
-     * 激活状态由 agent isActive 边界变化驱动（替代旧 smarter UI 开关 sync）：
-     * SmarterClientService 检测 isActive true→false / false→true 时调用。
-     */
-    public void setSmarterModeEnabled(UUID maidUUID, boolean enabled) {
-        if (maidUUID == null) return;
-        pendingSmarterSync.put(maidUUID, enabled);
-        NetworkHandler.INSTANCE.sendToServer(new ServerboundSetSmarterModePacket(maidUUID, enabled));
-    }
-
-    public void onSmarterModeSync(UUID maidUUID, boolean enabled) {
-        pendingSmarterSync.put(maidUUID, enabled);
-
-        // 同步更新客户端实体 NBT，确保持久一致
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level != null) {
-            for (Entity entity : mc.level.entitiesForRendering()) {
-                if (entity.getUUID().equals(maidUUID) && entity instanceof EntityMaid maid) {
-                    MaidSmarterState.setEnabled(maid, enabled);
-                    return;
-                }
-            }
-        }
-    }
-
-    // ========== Urana 快/慢环最小轮间间隔（per-maid）==========
-    // 参照 smarterMode 的 per-maid 同步模式，boolean → (long, long) 变体。
-    // 两环作为同一女仆的 urana 节律配置对一起同步：set 一环时捎带另一环当前值，避免新增包类。
-
-    public void setFastMinDtMillis(EntityMaid maid, long fastMinDtMillis) {
-        if (maid == null) return;
-        pendingFastMinDtSync.put(maid.getUUID(), fastMinDtMillis);
-        // 捎带慢环当前值一起发包（值不变，仅满足 payload 一变二）
-        long slowMinDtMillis = getSlowMinDtMillis(maid);
-        NetworkHandler.INSTANCE.sendToServer(new ServerboundSetMinDtMillisPacket(maid.getUUID(), fastMinDtMillis, slowMinDtMillis));
-    }
-
-    public void setSlowMinDtMillis(EntityMaid maid, long slowMinDtMillis) {
-        if (maid == null) return;
-        pendingSlowMinDtSync.put(maid.getUUID(), slowMinDtMillis);
-        // 捎带快环当前值一起发包（值不变，仅满足 payload 一变二）
-        long fastMinDtMillis = getFastMinDtMillis(maid);
-        NetworkHandler.INSTANCE.sendToServer(new ServerboundSetMinDtMillisPacket(maid.getUUID(), fastMinDtMillis, slowMinDtMillis));
-    }
-
-    public long getFastMinDtMillis(EntityMaid maid) {
-        if (maid == null) return 0;
-        if (pendingFastMinDtSync.containsKey(maid.getUUID())) {
-            return pendingFastMinDtSync.get(maid.getUUID());
-        }
-        return MaidSmarterState.getFastMinDtMillis(maid);
-    }
-
-    public long getSlowMinDtMillis(EntityMaid maid) {
-        if (maid == null) return 0;
-        if (pendingSlowMinDtSync.containsKey(maid.getUUID())) {
-            return pendingSlowMinDtSync.get(maid.getUUID());
-        }
-        return MaidSmarterState.getSlowMinDtMillis(maid);
-    }
-
-    public void onMinDtMillisSync(UUID maidUUID, long fastMinDtMillis, long slowMinDtMillis) {
-        pendingFastMinDtSync.put(maidUUID, fastMinDtMillis);
-        pendingSlowMinDtSync.put(maidUUID, slowMinDtMillis);
-
-        // 同步更新客户端实体 NBT，确保持久一致
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level != null) {
-            for (Entity entity : mc.level.entitiesForRendering()) {
-                if (entity.getUUID().equals(maidUUID) && entity instanceof EntityMaid maid) {
-                    MaidSmarterState.setFastMinDtMillis(maid, fastMinDtMillis);
-                    MaidSmarterState.setSlowMinDtMillis(maid, slowMinDtMillis);
-                    return;
-                }
-            }
-        }
-    }
-
-    // ========== AI 模式选择（per-maid，递归层次）==========
-    // 参照 smarterMode/minDtMillis 的 per-maid 同步模式，一层选择发一个包。
-    // pendingModeSync 缓存客户端已发但未收到服务端确认的模式选择，避免回显延迟期间读到旧值。
-    // 模式更改下次附身生效（与 fast/slowMinDt 一致）——运行中的 agent 不会热切换。
-
-    public void setMode(EntityMaid maid, ResourceLocation registryId, ResourceLocation selectedId) {
-        if (maid == null) return;
-        pendingModeSync.computeIfAbsent(maid.getUUID(), k -> new HashMap<>()).put(registryId, selectedId);
-        NetworkHandler.INSTANCE.sendToServer(new ServerboundSetAiModePacket(maid.getUUID(), registryId, selectedId));
-    }
-
-    @Nullable
-    public ResourceLocation getMode(EntityMaid maid, ResourceLocation registryId) {
-        if (maid == null) return null;
-        Map<ResourceLocation, ResourceLocation> modes = pendingModeSync.get(maid.getUUID());
-        if (modes != null && modes.containsKey(registryId)) {
-            return modes.get(registryId);
-        }
-        return MaidSmarterState.getModeId(maid, registryId);
-    }
-
-    public void onAiModeSync(UUID maidUUID, ResourceLocation registryId, ResourceLocation selectedId) {
-        pendingModeSync.computeIfAbsent(maidUUID, k -> new HashMap<>()).put(registryId, selectedId);
-
-        // 同步更新客户端实体 NBT，确保持久一致
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level != null) {
-            for (Entity entity : mc.level.entitiesForRendering()) {
-                if (entity.getUUID().equals(maidUUID) && entity instanceof EntityMaid maid) {
-                    MaidSmarterState.setModeId(maid, registryId, selectedId);
-                    return;
-                }
-            }
-        }
     }
 
     // State Checkers

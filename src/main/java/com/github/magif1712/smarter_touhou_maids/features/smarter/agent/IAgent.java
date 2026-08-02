@@ -47,7 +47,7 @@ public interface IAgent {
     void awaken();
 
     /**
-     * 每 client tick 调用：消费 AI 产出的 behavior，解码为 ActionIntent，发包到服务端。
+     * 每 client tick 调用：消费 AI 产出的行为输出，解码为操作要求，发包到服务端。
      * <p>
      * SmarterClientService 已用 {@link #isActive()} 守卫，本方法仅在 agent 激活上下文中调用。
      * 故本方法内部不再重复检测激活条件（如附身状态）。
@@ -65,7 +65,7 @@ public interface IAgent {
 
     /**
      * 关闭：停止 AI 工作线程，释放共享资源（感觉缓冲区、CUDA 流、完成事件、行为通道）
-     * + sensor/effector/ai 各自 shutdown，并发一帧零 ActionIntent 让 maid 停止。
+     * + sensor/effector/ai 各自 shutdown，并发一帧零操作要求让 maid 停止。
      */
     void shutdown();
 

@@ -13,7 +13,7 @@ import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_a
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.effector.IEffector;
 import com.github.magif1712.smarter_touhou_maids.core.execution.MappedGenerationBuffer;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.ISensor;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ServerboundActionIntentPacket;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.effector.network.ServerboundActionIntentPacket;
 import com.github.magif1712.smarter_touhou_maids.network.NetworkHandler;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.network.chat.Component;

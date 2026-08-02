@@ -8,6 +8,7 @@ import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryEntry;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryIds;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryManager;
+import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.nbt.CompoundTag;
 
 /**
@@ -24,15 +25,15 @@ import net.minecraft.nbt.CompoundTag;
 public class ProcessAiFactory implements AiFactory {
 
     @Override
-    public IAiSystem create(CompoundTag config) {
+    public IAiSystem create(CompoundTag config, EntityMaid maid) {
         // === 查 ProcessRegistry 取下层 process factory（自驱组装）===
         Registry<?> processRegistry = RegistryManager.INSTANCE.get(RegistryIds.PROCESS);
         RegistryEntry<?> processEntry =
                 processRegistry.resolve(config.getString(RegistryIds.PROCESS.toString()));
         ProcessFactory processFactory = (ProcessFactory) processEntry.getFactory();
 
-        // 下层 process factory 自驱组装其内部 nn（config 透传，各层各取所需）
-        IProcessSystem process = processFactory.create(config);
+        // 下层 process factory 自驱组装其内部 nn（config + maid 透传，各层各取所需）
+        IProcessSystem process = processFactory.create(config, maid);
 
         // 注入构造（ProcessAiSystem 只直接用 process，不感知 nn）
         return new ProcessAiSystem(process);

@@ -1,6 +1,6 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.network;
 
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.core.PossessionManager;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.SmarterClientState;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
@@ -30,7 +30,7 @@ public class ClientboundSmarterModeSyncPacket {
     public static void handle(ClientboundSmarterModeSyncPacket msg, Supplier<NetworkEvent.Context> ctx) {
         ctx.get().enqueueWork(() -> {
             DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
-                PossessionManager.INSTANCE.onSmarterModeSync(msg.maidUUID, msg.enabled));
+                SmarterClientState.INSTANCE.onSmarterModeSync(msg.maidUUID, msg.enabled));
         });
         ctx.get().setPacketHandled(true);
     }
