@@ -1,8 +1,8 @@
-package com.github.magif1712.smarter_touhou_maids.features.ui.standard;
+package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui;
 
 import com.github.magif1712.smarter_touhou_maids.features.maid.menu.AutoTaskConfigMenu;
-import com.github.magif1712.smarter_touhou_maids.features.ui.standard.layout.ConfigRow;
-import com.github.magif1712.smarter_touhou_maids.features.ui.standard.layout.VerticalStack;
+import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.layout.ConfigRow;
+import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.layout.VerticalStack;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.GuiGraphics;

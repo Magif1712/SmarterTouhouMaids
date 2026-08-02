@@ -9,7 +9,7 @@ import net.minecraft.resources.ResourceLocation;
  * config 的 key 用 {@code registryId.toString()}（如 "smarter_touhou_maids:ai"），
  * 各层 factory 按需读对应 key。附属模组用自己的 mod id 命名空间注册新 registry。
  * <p>
- * GUI 域的 registry id 在 {@link com.github.magif1712.smarter_touhou_maids.features.ui.ConfigGuiIds}，
+ * GUI 域的 registry id 在 {@link com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.ConfigGuiIds}，
  * 不在此处——GUI 域与 smarter 模式域是两个平行的域。
  */
 public final class RegistryIds {

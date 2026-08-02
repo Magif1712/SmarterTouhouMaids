@@ -1,4 +1,4 @@
-package com.github.magif1712.smarter_touhou_maids.features.ui.standard;
+package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui;
 
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;

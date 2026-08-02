@@ -1,4 +1,4 @@
-package com.github.magif1712.smarter_touhou_maids.features.ui.standard;
+package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui;
 
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.client.gui.Font;
@@ -11,9 +11,9 @@ import javax.annotation.Nullable;
  * Panel 构建上下文：一次性注入 Panel 可能需要的所有外部依赖，Panel 各取所需
  * （真善美第1条"真"：每层只注入自己直接使用的那个抽象）。
  * <ul>
- *   <li>{@link com.github.magif1712.smarter_touhou_maids.features.ui.standard.panels.ModeSelectorPanel} 用 {@link #maid} + {@link #rebuildTrigger}</li>
- *   <li>{@link com.github.magif1712.smarter_touhou_maids.features.ui.standard.panels.AgentDebugPanel} 用 {@link #maid}（遍历各层 registry 取选中 entry）</li>
- *   <li>{@link com.github.magif1712.smarter_touhou_maids.features.ui.standard.panels.RuntimeParamsPanel} 用 {@link #maid}（SmarterLayerWalker 遍历各层 factory 收集 ParamOption）</li>
+ *   <li>{@link com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.panels.ModeSelectorPanel} 用 {@link #maid} + {@link #rebuildTrigger}</li>
+ *   <li>{@link com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.panels.AgentDebugPanel} 用 {@link #maid}（遍历各层 registry 取选中 entry）</li>
+ *   <li>{@link com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.panels.RuntimeParamsPanel} 用 {@link #maid}（SmarterLayerWalker 遍历各层 factory 收集 ParamOption）</li>
  * </ul>
  */
 @OnlyIn(Dist.CLIENT)

@@ -1,4 +1,4 @@
-package com.github.magif1712.smarter_touhou_maids.features.ui;
+package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui;
 
 import com.github.magif1712.smarter_touhou_maids.SmarterTouhouMaids;
 import net.minecraft.resources.ResourceLocation;

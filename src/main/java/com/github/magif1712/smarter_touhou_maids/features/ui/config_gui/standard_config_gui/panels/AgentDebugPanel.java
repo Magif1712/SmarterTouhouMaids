@@ -1,12 +1,12 @@
-package com.github.magif1712.smarter_touhou_maids.features.ui.standard.panels;
+package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.panels;
 
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.SmarterLayerWalker;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.debug.DebugOption;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.debug.DebugPanelProvider;
-import com.github.magif1712.smarter_touhou_maids.features.ui.standard.IConfigPanel;
-import com.github.magif1712.smarter_touhou_maids.features.ui.standard.PanelContext;
-import com.github.magif1712.smarter_touhou_maids.features.ui.standard.layout.ConfigRow;
-import com.github.magif1712.smarter_touhou_maids.features.ui.standard.layout.VerticalStack;
+import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.IConfigPanel;
+import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.PanelContext;
+import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.layout.ConfigRow;
+import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.layout.VerticalStack;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.Tooltip;

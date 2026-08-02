@@ -1,8 +1,8 @@
-package com.github.magif1712.smarter_touhou_maids.features.ui.standard;
+package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui;
 
-import com.github.magif1712.smarter_touhou_maids.features.ui.standard.panels.AgentDebugPanel;
-import com.github.magif1712.smarter_touhou_maids.features.ui.standard.panels.ModeSelectorPanel;
-import com.github.magif1712.smarter_touhou_maids.features.ui.standard.panels.RuntimeParamsPanel;
+import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.panels.AgentDebugPanel;
+import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.panels.ModeSelectorPanel;
+import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.panels.RuntimeParamsPanel;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 

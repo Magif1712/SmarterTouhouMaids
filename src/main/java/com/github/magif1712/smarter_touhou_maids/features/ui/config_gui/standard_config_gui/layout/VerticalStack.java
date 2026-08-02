@@ -1,4 +1,4 @@
-package com.github.magif1712.smarter_touhou_maids.features.ui.standard.layout;
+package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.layout;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;

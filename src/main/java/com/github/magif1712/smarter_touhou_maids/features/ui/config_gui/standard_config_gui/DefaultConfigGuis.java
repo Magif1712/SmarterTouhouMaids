@@ -1,11 +1,11 @@
-package com.github.magif1712.smarter_touhou_maids.features.ui.standard;
+package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui;
 
 import com.github.magif1712.smarter_touhou_maids.SmarterTouhouMaids;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.Registry;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryEntry;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryManager;
-import com.github.magif1712.smarter_touhou_maids.features.ui.ConfigGuiFactory;
-import com.github.magif1712.smarter_touhou_maids.features.ui.ConfigGuiIds;
+import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.ConfigGuiFactory;
+import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.ConfigGuiIds;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -13,15 +13,15 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 /**
  * 主模组默认配置 GUI 注册：在 {@code FMLClientSetupEvent} 调用 {@link #registerDefaults()}。
  * <p>
- * 创建 {@code Registry<ConfigGuiFactory>}（id={@link com.github.magif1712.smarter_touhou_maids.features.ui.ConfigGuiIds#CONFIG_GUI}）并注册默认 entry：
+ * 创建 {@code Registry<ConfigGuiFactory>}（id={@link com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.ConfigGuiIds#CONFIG_GUI}）并注册默认 entry：
  * {@code smarter_touhou_maids:default} → {@code AutoTaskConfigScreen::new}（标准配置界面）。
  * <p>
- * <b>本类在 standard/ 而非 ui/ 顶层</b>（真善美第2条：顶层不依赖具体实现）：
- * 本类引用 {@link AutoTaskConfigScreen}（standard/ 的具体实现），故属于实现包而非接口包。
+ * <b>本类在 standard_config_gui/ 而非 config_gui/ 抽象层</b>（真善美第2条：抽象层不依赖具体实现）：
+ * 本类引用 {@link AutoTaskConfigScreen}（standard_config_gui/ 的具体实现），故属于实现包而非抽象包。
  * 类比 {@code AiModeDefaults} 引用 {@code BnnNnFactory} 但放在 {@code registry/} 而非 {@code nn/}——
  * 注册代码引用具体实现，但注册代码本身不在接口包内。
- * 这样删掉 standard/ 后，顶层 ui/（{@link ConfigGuiFactory} +
- * {@link com.github.magif1712.smarter_touhou_maids.features.ui.GuiSelectorScreen GuiSelectorScreen} +
+ * 这样删掉 standard_config_gui/ 后，抽象层 config_gui/（{@link ConfigGuiFactory} + {@link ConfigGuiIds}）+
+ * 上层 ui/（{@link com.github.magif1712.smarter_touhou_maids.features.ui.GuiSelectorScreen GuiSelectorScreen} +
  * {@link com.github.magif1712.smarter_touhou_maids.features.ui.GuiSelectionStore GuiSelectionStore}）
  * 仍可独立编译——满足"单一具体实现子包可独立运行"。
  * <p>
@@ -34,7 +34,7 @@ import net.minecraftforge.api.distmarker.OnlyIn;
  * <p>
  * 设计原则（真善美第3条）：把"主模组提供哪些 GUI"这个不实在的约束，实在化为注册代码。
  *
- * @see com.github.magif1712.smarter_touhou_maids.features.ui.ConfigGuiFactory
+ * @see com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.ConfigGuiFactory
  * @see com.github.magif1712.smarter_touhou_maids.features.ui.GuiSelectorScreen
  */
 @OnlyIn(Dist.CLIENT)

@@ -1,14 +1,14 @@
-package com.github.magif1712.smarter_touhou_maids.features.ui.standard.panels;
+package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.panels;
 
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.core.PossessionManager;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.Registry;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryEntry;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryIds;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryManager;
-import com.github.magif1712.smarter_touhou_maids.features.ui.standard.IConfigPanel;
-import com.github.magif1712.smarter_touhou_maids.features.ui.standard.PanelContext;
-import com.github.magif1712.smarter_touhou_maids.features.ui.standard.layout.ConfigRow;
-import com.github.magif1712.smarter_touhou_maids.features.ui.standard.layout.VerticalStack;
+import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.IConfigPanel;
+import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.PanelContext;
+import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.layout.ConfigRow;
+import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.layout.VerticalStack;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.network.chat.Component;
