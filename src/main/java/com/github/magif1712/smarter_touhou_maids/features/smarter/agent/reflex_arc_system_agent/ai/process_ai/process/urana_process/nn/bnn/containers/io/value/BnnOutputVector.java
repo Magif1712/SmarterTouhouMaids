@@ -9,7 +9,7 @@ import com.github.magif1712.smarter_touhou_maids.core.containers.vector.BoolVect
  * 它对内部数据的具体含义一无所知。
  * 数据的解释和布局由应用世界的“视图”类（如 OutputVectorView）负责。
  */
-public class OutputVector implements AutoCloseable {
+public class BnnOutputVector implements AutoCloseable {
 
     private final BoolVector underlying;
 
@@ -18,11 +18,11 @@ public class OutputVector implements AutoCloseable {
      *
      * @param size 底层BoolVector的总大小。
      */
-    public OutputVector(int size) {
+    public BnnOutputVector(int size) {
         this.underlying = new BoolVector(size);
     }
 
-    public OutputVector(BoolVector vector) {
+    public BnnOutputVector(BoolVector vector) {
         this.underlying = vector;
     }
 

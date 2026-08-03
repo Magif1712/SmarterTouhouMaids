@@ -55,18 +55,18 @@ public abstract class AbstractGradCell implements AutoCloseable {
     /** 存储链条中每一步的内部状态快照。 */
     protected final List<ChainStepState> stepStates;
     /**
-     * 一个独立的缓冲区，用于在反向传播链中安全地传递梯度 ∇C。
-     * 每次计算出新的 ∇C 后，都会深拷贝到这里，以防在下一次迭代中被覆盖。
+     * 跨轮次持存末端梯度 T_prev：两阶段的终端步都读它作为 ∇C_out，
+     * 只在阶段2结束后被 S2 回写一次（由 executeWithPool 末尾统一回写）。
+     * <p>
+     * 轮内瞬态梯度（组内链条、跨阶段 S1）不落此缓冲区，直读 nn 内部输入层梯度。
      */
     protected final VectorBase grad_C_buffer;
-    /** 在第二阶段（修正）中，作为输入向量“继承信息”部分 (C_in) 的向量。它的值由第一阶段的梯度计算而来。 */
+    /** 在第二阶段（修正）中，作为输入向量"继承信息"部分 (C_in) 的向量。它的值由第一阶段的梯度计算而来。 */
     protected final VectorBase c_input_for_phase2;
-    /** 一个全为零的向量，用于在第一阶段（探索）中清空输入向量的“继承信息”部分。 */
+    /** 一个全为零的向量，用于在第一阶段（探索）中清空输入向量的"继承信息"部分。 */
     protected final VectorBase zero_vector_C;
     protected final VectorBase next_c_input;
     protected final VectorBase current_F_input;
-
-    protected VectorBase terminalGradC; // 跨轮次末端梯度，外部绑定
 
     /**
      * 主构造函数。
@@ -131,10 +131,6 @@ public abstract class AbstractGradCell implements AutoCloseable {
         return result;
     }
 
-    public void bindTerminalGradientBuffer(VectorBase externalBuffer) {
-        this.terminalGradC = externalBuffer;
-    }
-
     /**
      * 模板方法：执行完整的N步链式两阶段学习流程。
      *
@@ -157,9 +153,12 @@ public abstract class AbstractGradCell implements AutoCloseable {
     /**
      * 执行完整的 N 步链式训练，并自动管理跨轮次梯度闭环。
      * 子类在组装好 samples 后调用此方法即可，无需手动处理 ∇C 的绑定与回写。
+     * <p>
+     * 闭环机制：grad_C_buffer 是跨轮次持存末端梯度 T_prev，两阶段的终端步都读它，
+     * 只在阶段2结束后被 S2 回写一次。轮内瞬态梯度（组内链条、跨阶段 S1）不落缓冲区，
+     * 直读 nn 内部输入层梯度。
      */
     protected final void executeWithClosedLoop(VectorBase initialInputF, long dtMillis, long stream) {
-        this.bindTerminalGradientBuffer(this.grad_C_buffer);
         this.executeWithPool(initialInputF, dtMillis, stream);
     }
 
@@ -167,15 +166,23 @@ public abstract class AbstractGradCell implements AutoCloseable {
         if (this.samplePool[0].target_F == null) {
             throw new IllegalStateException("samplePool 未填充，子类须在调用 executeWithClosedLoop 前填充 target");
         }
+        var cSpan_out = this.ioDomain.getOutputDomain().getInheritanceInfoSpan();
+
         // === 阶段一：探索 (不更新权重) ===
         runForwardPass(initialInputF, this.zero_vector_C, dtMillis, stream);
-        VectorBase initialGradC = runBackwardPass(this.samplePool, false, stream);
+        runBackwardPass(this.samplePool, false, stream);
+        // S1 留在 nn 内部输入层梯度中，不落缓冲区；grad_C_buffer 仍持 T_prev
 
         // === 阶段二：修正与学习 (更新权重) ===
-        // BNN: negateAndBinarize(∇C)→C'；CNN: 等价转换。nn 特定，藏实现。
-        nn.gradientToInput(initialGradC, this.c_input_for_phase2, stream);
+        // C' = transform(S1)：直读 nn 内部输入层梯度（瞬态，无缓冲区）。
+        // BNN: negateAndBinarize(∇C 区间)→C'；CNN: 等价转换。nn 特定，藏实现。
+        nn.gradientToInputFromInternal(cSpan_out, this.c_input_for_phase2, stream);
         runForwardPass(initialInputF, this.c_input_for_phase2, dtMillis, stream);
-        return runBackwardPass(this.samplePool, true, stream);
+        runBackwardPass(this.samplePool, true, stream);
+
+        // 阶段2结束：S2 → grad_C_buffer（供下轮 T_prev）。全轮唯一一次写入 grad_C_buffer。
+        nn.copyFromInputGradient(cSpan_out, this.grad_C_buffer, stream);
+        return this.grad_C_buffer;
     }
 
     // ==================== 共享实现 (两阶段学习) ====================
@@ -215,26 +222,31 @@ public abstract class AbstractGradCell implements AutoCloseable {
         }
     }
 
-    private VectorBase runBackwardPass(ChainStepSample[] samples, boolean updateWeights, long stream) {
-        var inputDomain = this.ioDomain.getInputDomain();
+    private void runBackwardPass(ChainStepSample[] samples, boolean updateWeights, long stream) {
         var fSpan_out = this.ioDomain.getOutputDomain().getFeelingSpan();
         var bSpan_out = this.ioDomain.getOutputDomain().getBehaviorSpan();
         var cSpan_out = this.ioDomain.getOutputDomain().getInheritanceInfoSpan();
-        VectorBase grad_C_from_next = this.grad_C_buffer;
-
-        // 优化：当 terminalGradC 指向自身时，跳过无意义的自拷贝
-        if (this.terminalGradC != null && this.terminalGradC != grad_C_from_next) {
-            grad_C_from_next.copyRegionFrom(this.terminalGradC, fullSpan(this.terminalGradC), fullSpan(grad_C_from_next), stream);
-        } else if (this.terminalGradC == null) {
-            nn.zeroGradient(grad_C_from_next, stream);
-        }
 
         for (int i = this.chainLength - 1; i >= 0; i--) {
             ChainStepState state = this.stepStates.get(i);
             ChainStepSample sample = samples[i];
 
-            prepareBackward(state.output, sample.target_F, sample.target_B, grad_C_from_next, stream, fSpan_out, bSpan_out, cSpan_out);
+            // 1. 目标与 F/B 梯度（终端与非终端共用）
+            nn.setTarget(fSpan_out, sample.target_F, stream);
+            nn.setTarget(bSpan_out, sample.target_B, stream);
+            nn.computeOutputGradient(state.output, fSpan_out, stream);
+            nn.computeOutputGradient(state.output, bSpan_out, stream);
 
+            // 2. 链式 ∇C_out 注入：
+            //    终端步（i == chainLength-1）读跨轮持存缓冲区 grad_C_buffer（T_prev）；
+            //    非终端步直读 nn 内部输入层梯度（瞬态组内链条，无缓冲区）。
+            if (i == this.chainLength - 1) {
+                nn.injectOutputGradient(cSpan_out, this.grad_C_buffer, stream);
+            } else {
+                nn.injectOutputGradientFromInputGradient(cSpan_out, stream);
+            }
+
+            // 3. 反向传播
             try {
                 if (updateWeights) {
                     nn.backwardAndUpdate(state.fz, state.input, stream);
@@ -245,26 +257,8 @@ public abstract class AbstractGradCell implements AutoCloseable {
                 throw new RuntimeException(
                     "Backward pass failed at step " + i + " in " + getClass().getSimpleName(), e);
             }
-
-            // 3. 关键：深拷贝 ∇C
-            nn.copyFromInputGradient(cSpan_out, this.grad_C_buffer, stream);
+            // 不再每步回写 grad_C_buffer：阶段1不触碰 T_prev，S2 由 executeWithPool 末尾统一回写。
         }
-        return grad_C_from_next;
-    }
-
-    private void prepareBackward(VectorBase current_output, VectorBase target_F, VectorBase target_B,
-                                 VectorBase grad_C_input_from_prev_cycle, long stream,
-                                 Span fSpan_out, Span bSpan_out, Span cSpan_out) {
-        // 1. 组装目标向量 y（nn 内部持 target）
-        nn.setTarget(fSpan_out, target_F, stream);
-        nn.setTarget(bSpan_out, target_B, stream);
-
-        // 2. 分别计算 F 和 B 部分的梯度
-        nn.computeOutputGradient(current_output, fSpan_out, stream);
-        nn.computeOutputGradient(current_output, bSpan_out, stream);
-
-        // 3. 直接注入来自下一个步骤的 C 区间梯度 (∇C_in)
-        nn.injectOutputGradient(cSpan_out, grad_C_input_from_prev_cycle, stream);
     }
 
     /**

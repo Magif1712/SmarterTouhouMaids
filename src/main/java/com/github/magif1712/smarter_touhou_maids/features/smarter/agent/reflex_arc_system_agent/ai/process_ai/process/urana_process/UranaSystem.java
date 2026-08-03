@@ -352,11 +352,11 @@ public class UranaSystem implements IProcessSystem {
     // ==================== 慢环（学习/反思，巩固）====================
 
     /**
-     * 慢环单轮：流程一（从痕迹取样填 anchor）+ 流程四/五/三/六/七/八。
+     * 慢环单轮：流程一/三/四/五/六/七/八按算法.md 编号顺序依次执行（流程二在快环）。
      * <p>
      * 流程一从 trace 三缓冲取最新一份成对 (feeling, behavior) push 进 prospectiveAnchor，保证同一列
-     * 同时刻对齐。随后分析层（流程四/五）、行动层学习（流程三）、分析层学习（流程六）、反思层
-     * （流程七/八）依次在 {@link #uranaStream} 上执行。学习/反思按慢环自身节律连续积累。
+     * 同时刻对齐。随后流程三（行动层学习）、流程四/五（分析层推理+锚点）、流程六（分析层学习）、
+     * 流程七/八（反思层推理+训练）依次在 {@link #uranaStream} 上执行。学习/反思按慢环自身节律连续积累。
      *
      * @param dtMillis 慢环本轮与上一轮之间的墙钟时间间隔（毫秒）。首轮为 0。
      */
@@ -367,8 +367,6 @@ public class UranaSystem implements IProcessSystem {
         if (dtDebugEnabled) {
             LOGGER.info("[UranaSlow] dt={} ms", dtMillis);
         }
-
-        // === 1. 行动与分析 ===
 
         // [流程一] 从快环最新痕迹快照成对 push 进 prospectiveAnchor。
         this.prospectiveAnchor.tick();
@@ -383,6 +381,16 @@ public class UranaSystem implements IProcessSystem {
         // 不过现在的算力情况下，这种情况及其罕见，系统一定程度上可以容错。
         this.prospectiveAnchor.pushFeelingFrom(this.traceFeeling[tIdx], stream);
         this.prospectiveAnchor.pushBehaviorFrom(this.traceBehavior[tIdx], stream);
+
+        // [流程三] 行动层梯度下降：读 prospectiveAnchor（suspension+precipitate）训练，写权重。
+        // dt 用 trace 中存的 fastDt（不是 slowDt）：prospective 网络的时间认识基于行动者快节奏，
+        // 训练样本来自快环痕迹、样本间真实间隔是 fastDt，故训练 dt 也用 fastDt，与快环推理一致。
+        // 权重与快环 forward 并发读写，安全靠 32 位原子性（方案 C，见类注释）。
+        long fastDtForTraining = this.traceFastDt[tIdx];
+        if (dtDebugEnabled) {
+            LOGGER.info("[UranaProTrain] dt={} ms", fastDtForTraining);
+        }
+        prospectiveGradCell.execute(prospectiveAnchor, fastDtForTraining, stream);
 
         // [流程四] N=1：F=上轮输出F，C=上轮输出C（分析层自身状态，不碰 prospectiveAnchor）
         VectorBase retrospectiveOutput = retrospectiveInference.execute(
@@ -399,18 +407,6 @@ public class UranaSystem implements IProcessSystem {
         this.lastRetrospectiveFeeling.copyRegionFrom(
                 retrospectiveOutput, OUTPUT_DOMAIN.getFeelingSpan(),
                 new Span(0, fLen) {}, stream);
-
-        // === 2. 学习与反思 ===
-
-        // [流程三] 行动层梯度下降：读 prospectiveAnchor（suspension+precipitate）训练，写权重。
-        // dt 用 trace 中存的 fastDt（不是 slowDt）：prospective 网络的时间认识基于行动者快节奏，
-        // 训练样本来自快环痕迹、样本间真实间隔是 fastDt，故训练 dt 也用 fastDt，与快环推理一致。
-        // 权重与快环 forward 并发读写，安全靠 32 位原子性（方案 C，见类注释）。
-        long fastDtForTraining = this.traceFastDt[tIdx];
-        if (dtDebugEnabled) {
-            LOGGER.info("[UranaProTrain] dt={} ms", fastDtForTraining);
-        }
-        prospectiveGradCell.execute(prospectiveAnchor, fastDtForTraining, stream);
 
         // [流程六] 分析层梯度下降：写权重。
         retrospectiveGradCell.execute(retrospectiveAnchor, dtMillis, stream);

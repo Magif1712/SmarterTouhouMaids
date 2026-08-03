@@ -18,6 +18,7 @@
   "mode.smarter_touhou_maids.ai.process_ai": "Process AI",
   "mode.smarter_touhou_maids.process.urana": "Urana Process",
   "mode.smarter_touhou_maids.nn.bnn": "BNN",
+  "mode.smarter_touhou_maids.nn.standard_bnn": "Standard BNN (Startle Reflex)",
   "mode.smarter_touhou_maids.sensor.possession_sensor": "Possession Sensor",
   "mode.smarter_touhou_maids.effector.bionic_muscle_effector": "Bionic Muscle Effector",
   "panel.smarter_touhou_maids.mode_selector": "Smarter Mode Selection",

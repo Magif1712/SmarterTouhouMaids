@@ -1,27 +1,27 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.io.gradient;
 
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.IntVector;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.mapping.training.GradientProcessor;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.mapping.training.BnnGradientProcessor;
 
 import java.util.Objects;
 
 /**
  * 代表输出层（δ_L）的梯度。
  * 这个类现在是一个纯粹的数据容器，用于封装一个已经计算好的梯度向量。
- * 它的创建由 {@link GradientProcessor} 负责。
+ * 它的创建由 {@link BnnGradientProcessor} 负责。
  */
-public class OutputLayerGradient implements AutoCloseable {
+public class BnnOutputLayerGradient implements AutoCloseable {
     private final IntVector gradient;
 
     /**
      * 构造一个输出层梯度容器.
      * <p>
-     * 注意：这个构造函数是公共的，以便 {@link GradientProcessor} 可以创建实例。
-     * 在实践中，应始终通过 {@code GradientProcessor} 来获取此类的实例。
+     * 注意：这个构造函数是公共的，以便 {@link BnnGradientProcessor} 可以创建实例。
+     * 在实践中，应始终通过 {@code BnnGradientProcessor} 来获取此类的实例。
      *
      * @param computedGradient 一个已经计算完成的梯度向量.
      */
-    public OutputLayerGradient(IntVector computedGradient) {
+    public BnnOutputLayerGradient(IntVector computedGradient) {
         this.gradient = Objects.requireNonNull(computedGradient, "计算好的梯度数组不能为空。");
     }
 

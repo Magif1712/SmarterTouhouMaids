@@ -2,7 +2,7 @@ package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_
 
 import com.github.magif1712.smarter_touhou_maids.core.native_support.NativeLibLoader;
 
-class InferenceOpsNative {
+class BnnInferenceOpsNative {
     static {
         NativeLibLoader.ensureLoaded();
     }

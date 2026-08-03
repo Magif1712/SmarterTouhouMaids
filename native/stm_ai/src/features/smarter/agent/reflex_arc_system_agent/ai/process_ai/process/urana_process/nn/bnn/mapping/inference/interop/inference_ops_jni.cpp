@@ -6,7 +6,7 @@
 extern "C" {
 #endif
 
-JNIEXPORT void JNICALL JNI_METHOD(features_smarter_agent_reflex_1arc_1system_1agent_ai_process_1ai_process_urana_1process_nn_bnn_mapping_inference, InferenceOpsNative, _1bnnForwardLayerStoreFz)(
+JNIEXPORT void JNICALL JNI_METHOD(features_smarter_agent_reflex_1arc_1system_1agent_ai_process_1ai_process_urana_1process_nn_bnn_mapping_inference, BnnInferenceOpsNative, _1bnnForwardLayerStoreFz)(
     JNIEnv *env,
     jclass clazz,
     jlong a_prev_pad, jlong q, jlong P,
@@ -26,7 +26,7 @@ JNIEXPORT void JNICALL JNI_METHOD(features_smarter_agent_reflex_1arc_1system_1ag
     JNI_CATCH_TRANSLATE(env, "_bnnForwardLayerStoreFz")
 }
 
-JNIEXPORT void JNICALL JNI_METHOD(features_smarter_agent_reflex_1arc_1system_1agent_ai_process_1ai_process_urana_1process_nn_bnn_mapping_inference, InferenceOpsNative, _1bnnForwardLayerNoFz)(
+JNIEXPORT void JNICALL JNI_METHOD(features_smarter_agent_reflex_1arc_1system_1agent_ai_process_1ai_process_urana_1process_nn_bnn_mapping_inference, BnnInferenceOpsNative, _1bnnForwardLayerNoFz)(
     JNIEnv *env,
     jclass clazz,
     jlong a_prev_pad, jlong q, jlong P,

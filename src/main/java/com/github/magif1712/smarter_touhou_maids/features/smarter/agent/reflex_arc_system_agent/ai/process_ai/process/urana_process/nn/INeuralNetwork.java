@@ -20,7 +20,7 @@ import com.github.magif1712.smarter_touhou_maids.core.containers.vector.VectorBa
  * dt 的时间语义也在 urana：urana 调 {@link #copyToInputFromLong} 传入 dtSpan+dtMillis，
  * 本接口只做"long 值编码进我的载体格式填到指定 region"的机械动作。
  *
- * @see com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.BnnNeuralNetwork
+ * @see com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.AbstractBnnNeuralNetwork
  */
 public interface INeuralNetwork extends AutoCloseable {
 
@@ -127,6 +127,33 @@ public interface INeuralNetwork extends AutoCloseable {
      * @param inputC  目标输入 C 向量（urana 适配器持有的 c_input_for_phase2，nn.createVector 创建）。
      */
     void gradientToInput(VectorBase gradC, VectorBase inputC, long stream);
+
+    /**
+     * 把 nn 内部输入层梯度的指定 region 直接拷贝到 nn 内部输出层梯度的同一 region。
+     * <p>
+     * 用于链式 BPTT 非终端步的 ∇C_out 注入：瞬态组内链条梯度不落 urana 缓冲区，
+     * 直接在 nn 内部从输入层梯度区间搬到输出层梯度区间。
+     * <p>
+     * 与 {@link #injectOutputGradient} 的区别：本方法的源是 nn 内部输入层梯度（瞬态，无 urana 缓冲区），
+     * 后者的源是 urana 持有的外部缓冲区（跨轮持存 T_prev）。
+     *
+     * @param region 要搬运的区段（urana 传 cSpan_out）。
+     */
+    void injectOutputGradientFromInputGradient(Span region, long stream);
+
+    /**
+     * 把 nn 内部输入层梯度的指定 region 经 nn 特定变换转为输入 C 向量（C'），供阶段二前向使用。
+     * <p>
+     * 用于跨阶段 S1→C' 转换：瞬态 S1（阶段一反向算出的输入层梯度的 C 部分）不落 urana 缓冲区，
+     * 直接读 nn 内部输入层梯度。与 {@link #gradientToInput} 的区别：本方法的源是 nn 内部输入层梯度，
+     * 后者的源是 urana 持有的外部梯度向量。
+     * <p>
+     * <b>BNN 特定</b>：negateAndBinarize 的区间版（IntVector 梯度 region → BoolVector 输入）。
+     *
+     * @param region 输入层梯度中的 C 区段（urana 传 cSpan_out）。
+     * @param inputC 目标输入 C 向量（urana 持有的 c_input_for_phase2，nn.createVector 创建）。
+     */
+    void gradientToInputFromInternal(Span region, VectorBase inputC, long stream);
 
     /**
      * 把梯度向量清零（标量乘 0）。

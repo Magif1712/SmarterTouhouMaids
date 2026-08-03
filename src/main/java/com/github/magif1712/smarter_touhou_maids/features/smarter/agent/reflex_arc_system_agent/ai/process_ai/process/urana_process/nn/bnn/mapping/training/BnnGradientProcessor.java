@@ -1,9 +1,9 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.mapping.training;
 
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.VectorMappings;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.io.gradient.OutputLayerGradient;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.io.value.OutputVector;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.io.value.TargetVector;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.io.gradient.BnnOutputLayerGradient;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.io.value.BnnOutputVector;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.io.value.BnnTargetVector;
 import com.github.magif1712.smarter_touhou_maids.core.containers.domain.Span;
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.BoolVector;
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.IntVector;
@@ -16,7 +16,7 @@ import java.util.Objects;
  * 这个类遵循单一职责原则，将复杂的计算逻辑从数据容器中分离出来，
  * 使得代码更加模块化、可测试和易于维护。
  */
-public class GradientProcessor {
+public class BnnGradientProcessor {
 
     /**
      * 根据实际输出和目标输出，计算输出层指定子区间的梯度。
@@ -27,7 +27,7 @@ public class GradientProcessor {
      * @param span         要计算梯度的子区间。
      * @param streamHandle CUDA 流句柄（减法/乘法 kernel 在此流上执行）。
      */
-    public static void calculateOutputLayerGradient(OutputVector actualOutput, TargetVector target, OutputLayerGradient outGradient, Span span, long streamHandle) {
+    public static void calculateOutputLayerGradient(BnnOutputVector actualOutput, BnnTargetVector target, BnnOutputLayerGradient outGradient, Span span, long streamHandle) {
         // 步骤 1: 健壮性检查
         Objects.requireNonNull(actualOutput, "实际输出向量不能为空。");
         Objects.requireNonNull(target, "目标向量不能为空。");

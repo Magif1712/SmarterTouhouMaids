@@ -1,15 +1,15 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.io;
 
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.BoolVector;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.io.value.InputVector;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.io.value.OutputVector;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.io.value.BnnInputVector;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.io.value.BnnOutputVector;
 
 /**
- * IO（输入/输出）容器。
+ * BnnIO（输入/输出）容器。
  */
-public class IO implements AutoCloseable {
-    private final InputVector input;
-    private final OutputVector output;
+public class BnnIO implements AutoCloseable {
+    private final BnnInputVector input;
+    private final BnnOutputVector output;
 
     /**
      * 构造一个IO容器，并自动创建内部的InputVector和OutputVector。
@@ -17,16 +17,16 @@ public class IO implements AutoCloseable {
      * @param sizeA0 输入向量的大小。
      * @param sizeA1 输出向量的大小。
      */
-    public IO(int sizeA0, int sizeA1) {
-        this.input = new InputVector(sizeA0);
-        this.output = new OutputVector(sizeA1);
+    public BnnIO(int sizeA0, int sizeA1) {
+        this.input = new BnnInputVector(sizeA0);
+        this.output = new BnnOutputVector(sizeA1);
     }
 
-    public InputVector getInput() {
+    public BnnInputVector getInput() {
         return input;
     }
 
-    public OutputVector getOutput() {
+    public BnnOutputVector getOutput() {
         return output;
     }
 

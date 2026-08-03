@@ -3,7 +3,7 @@ package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.BoolVector;
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.IntVector;
 
-public class Hyperparameters implements AutoCloseable {
+public class BnnHyperparameters implements AutoCloseable {
     private int sizeA0;
     private int sizeA1;
 
@@ -13,7 +13,7 @@ public class Hyperparameters implements AutoCloseable {
     private BoolVector l;
     private BoolVector r;
 
-    public Hyperparameters(int sizeA0, int sizeA1) {
+    public BnnHyperparameters(int sizeA0, int sizeA1) {
         if (sizeA0 < 0 || sizeA1 < 0) {
             throw new IllegalArgumentException("size must be non-negative");
         }
@@ -95,7 +95,7 @@ public class Hyperparameters implements AutoCloseable {
     /**
      * 从磁盘自动加载超参数，无需手动指定维度。
      */
-    public static Hyperparameters loadFromFile(String folderPath) {
+    public static BnnHyperparameters loadFromFile(String folderPath) {
         java.io.File folder = new java.io.File(folderPath);
 
         BoolVector b = BoolVector.loadFromFile(new java.io.File(folder, "b.bin").getAbsolutePath());
@@ -108,10 +108,10 @@ public class Hyperparameters implements AutoCloseable {
         int sizeA1 = b.size();
         int sizeA0 = p.size();
 
-        return new Hyperparameters(sizeA0, sizeA1, b, p, q, l, r);
+        return new BnnHyperparameters(sizeA0, sizeA1, b, p, q, l, r);
     }
 
-    private Hyperparameters(int sizeA0, int sizeA1, BoolVector b, IntVector p, 
+    private BnnHyperparameters(int sizeA0, int sizeA1, BoolVector b, IntVector p, 
                            BoolVector q, BoolVector l, BoolVector r) {
         this.sizeA0 = sizeA0;
         this.sizeA1 = sizeA1;

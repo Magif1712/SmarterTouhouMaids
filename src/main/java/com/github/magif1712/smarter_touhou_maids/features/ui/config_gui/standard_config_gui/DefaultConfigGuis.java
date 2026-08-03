@@ -18,7 +18,7 @@ import net.minecraftforge.api.distmarker.OnlyIn;
  * <p>
  * <b>本类在 standard_config_gui/ 而非 config_gui/ 抽象层</b>（真善美第2条：抽象层不依赖具体实现）：
  * 本类引用 {@link AutoTaskConfigScreen}（standard_config_gui/ 的具体实现），故属于实现包而非抽象包。
- * 类比 {@code AiModeDefaults} 引用 {@code BnnNnFactory} 但放在 {@code registry/} 而非 {@code nn/}——
+ * 类比 {@code AiModeDefaults} 引用 {@code original_bnn.BnnModes}（具体实现包的贡献者）但放在 {@code registry/} 而非 {@code nn/}——
  * 注册代码引用具体实现，但注册代码本身不在接口包内。
  * 这样删掉 standard_config_gui/ 后，抽象层 config_gui/（{@link ConfigGuiFactory} + {@link ConfigGuiIds}）+
  * 上层 ui/（{@link com.github.magif1712.smarter_touhou_maids.features.ui.GuiSelectorScreen GuiSelectorScreen} +

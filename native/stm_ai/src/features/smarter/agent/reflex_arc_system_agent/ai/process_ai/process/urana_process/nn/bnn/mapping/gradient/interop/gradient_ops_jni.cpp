@@ -4,7 +4,7 @@
 
 extern "C" {
 
-JNIEXPORT void JNICALL JNI_METHOD(features_smarter_agent_reflex_1arc_1system_1agent_ai_process_1ai_process_urana_1process_nn_bnn_mapping_training, GradientOpsNative, _1backwardLayer)(
+JNIEXPORT void JNICALL JNI_METHOD(features_smarter_agent_reflex_1arc_1system_1agent_ai_process_1ai_process_urana_1process_nn_bnn_mapping_training, BnnGradientOpsNative, _1backwardLayer)(
     JNIEnv* env,
     jclass clazz,
     jlong da0_handle,
@@ -37,7 +37,7 @@ JNIEXPORT void JNICALL JNI_METHOD(features_smarter_agent_reflex_1arc_1system_1ag
     JNI_CATCH_TRANSLATE(env, "_backwardLayer")
 }
 
-JNIEXPORT void JNICALL JNI_METHOD(features_smarter_agent_reflex_1arc_1system_1agent_ai_process_1ai_process_urana_1process_nn_bnn_mapping_training, GradientOpsNative, _1backwardGradientDescentLayer)(
+JNIEXPORT void JNICALL JNI_METHOD(features_smarter_agent_reflex_1arc_1system_1agent_ai_process_1ai_process_urana_1process_nn_bnn_mapping_training, BnnGradientOpsNative, _1backwardGradientDescentLayer)(
     JNIEnv* env,
     jclass clazz,
     jlong da0_handle,

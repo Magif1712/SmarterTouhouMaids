@@ -5,11 +5,11 @@ import com.github.magif1712.smarter_touhou_maids.core.containers.vector.BoolVect
 /**
  * 目标向量容器，在训练或计算损失时使用。
  */
-public class TargetVector implements AutoCloseable {
+public class BnnTargetVector implements AutoCloseable {
 
     private final BoolVector underlying;
 
-    public TargetVector(int size) {
+    public BnnTargetVector(int size) {
         this.underlying = new BoolVector(size);
     }
 

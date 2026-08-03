@@ -9,7 +9,7 @@ import com.github.magif1712.smarter_touhou_maids.core.containers.vector.BoolVect
  * 它对内部数据的具体含义（如“感觉”、“继承信息”等）一无所知。
  * 数据的解释和布局由应用世界的“视图”类（如 InputVectorView）负责。
  */
-public class InputVector implements AutoCloseable {
+public class BnnInputVector implements AutoCloseable {
 
     private final BoolVector underlying;
 
@@ -18,7 +18,7 @@ public class InputVector implements AutoCloseable {
      *
      * @param size 底层BoolVector的总大小。
      */
-    public InputVector(int size) {
+    public BnnInputVector(int size) {
         this.underlying = new BoolVector(size);
     }
 

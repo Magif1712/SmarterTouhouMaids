@@ -2,18 +2,18 @@ package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_
 
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.BoolVector;
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.IntVector;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.Hyperparameters;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.NetworkData;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.io.IO;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.io.IOLayerGradients;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.mapping.inference.InferenceOps;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.mapping.training.GradientOps;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.BnnHyperparameters;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.BnnNetworkData;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.io.BnnIO;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.containers.io.BnnIOLayerGradients;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.mapping.inference.BnnInferenceOps;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.mapping.training.BnnGradientOps;
 
-public class NetworkProcessor {
+public class BnnNetworkProcessor {
 
-    public static void forwardStoreFz(NetworkData networkData, IO io, BoolVector fz, long stream) {
-        Hyperparameters hyperparameters = networkData.getHyperparameters();
-        InferenceOps.bnnForwardLayerStoreFz(
+    public static void forwardStoreFz(BnnNetworkData networkData, BnnIO io, BoolVector fz, long stream) {
+        BnnHyperparameters hyperparameters = networkData.getHyperparameters();
+        BnnInferenceOps.bnnForwardLayerStoreFz(
                 io.getA0(), // a_prev_pad
                 hyperparameters.getQ(),
                 hyperparameters.getP(),
@@ -28,9 +28,9 @@ public class NetworkProcessor {
         );
     }
 
-    public static void forwardNoFz(NetworkData networkData, IO io, long stream) {
-        Hyperparameters hyperparameters = networkData.getHyperparameters();
-        InferenceOps.bnnForwardLayerNoFz(
+    public static void forwardNoFz(BnnNetworkData networkData, BnnIO io, long stream) {
+        BnnHyperparameters hyperparameters = networkData.getHyperparameters();
+        BnnInferenceOps.bnnForwardLayerNoFz(
                 io.getA0(), // a_prev_pad
                 hyperparameters.getQ(),
                 hyperparameters.getP(),
@@ -44,15 +44,15 @@ public class NetworkProcessor {
         );
     }
 
-    public static void backward(NetworkData networkData, IOLayerGradients gradients, BoolVector fz, long stream) throws Exception {
-        Hyperparameters hyperparameters = networkData.getHyperparameters();
+    public static void backward(BnnNetworkData networkData, BnnIOLayerGradients gradients, BoolVector fz, long stream) throws Exception {
+        BnnHyperparameters hyperparameters = networkData.getHyperparameters();
         // 从容器中获取向量
         IntVector da1 = gradients.getOutputLayerGradient().getVector();
         IntVector da0 = gradients.getInputLayerGradient().getVector();
         IntVector dzWorkspace = gradients.getDzWorkspace();
 
         // 调用封装好的、一步到位的反向传播层
-        GradientOps.backwardLayer(
+        BnnGradientOps.backwardLayer(
                 da0,
                 da1,
                 fz,
@@ -69,15 +69,15 @@ public class NetworkProcessor {
         );
     }
 
-    public static void backwardWithGradientDescent(NetworkData networkData, IOLayerGradients gradients, BoolVector fz, BoolVector a_prev, long stream) throws Exception {
-        Hyperparameters hyperparameters = networkData.getHyperparameters();
+    public static void backwardWithGradientDescent(BnnNetworkData networkData, BnnIOLayerGradients gradients, BoolVector fz, BoolVector a_prev, long stream) throws Exception {
+        BnnHyperparameters hyperparameters = networkData.getHyperparameters();
         // 从容器中获取向量
         IntVector da1 = gradients.getOutputLayerGradient().getVector();
         IntVector da0 = gradients.getInputLayerGradient().getVector();
         IntVector dzWorkspace = gradients.getDzWorkspace();
 
         // 调用封装好的、带梯度下降的反向传播层
-        GradientOps.backwardGradientDescentLayer(
+        BnnGradientOps.backwardGradientDescentLayer(
                 da0,
                 da1,
                 a_prev,

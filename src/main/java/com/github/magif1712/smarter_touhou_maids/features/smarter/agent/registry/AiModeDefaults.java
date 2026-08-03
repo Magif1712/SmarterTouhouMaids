@@ -8,7 +8,7 @@ import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_a
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.ProcessFactory;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.UranaProcessFactory;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.NnFactory;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.BnnNnFactory;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.bnn.standard_bnn.StandardBnnModes;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.SensorFactory;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.PossessionSensorFactory;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.effector.EffectorFactory;
@@ -20,7 +20,10 @@ import net.minecraft.resources.ResourceLocation;
  * <p>
  * 注册三个 {@link Registry} 到 {@link RegistryManager}，每个 registry 注册一个默认 entry：
  * <ul>
- *   <li>NnRegistry（id={@link RegistryIds#NN}）：bnn → {@link BnnNnFactory}，subRegistryId=null（叶子）</li>
+ *   <li>NnRegistry（id={@link RegistryIds#NN}）：standard_bnn → 经 {@link StandardBnnModes} 自包含注册
+ *       （standard_bnn 模块，核心默认，带门控重连的 bnn），subRegistryId=null（叶子）。
+ *       <b>原初 bnn 不在此登记</b>：由 original_bnn.BnnRegistration 经 Forge {@code @EventBusSubscriber}
+ *       以附属模组方式自注册（与真正附属模组注册路径一致，BnnRegistration 即附属模组样板）。</li>
  *   <li>ProcessRegistry（id={@link RegistryIds#PROCESS}）：urana → {@link UranaProcessFactory}，
  *       subRegistryId={@link RegistryIds#NN}（选了 urana 后还要选 nn）</li>
  *   <li>AiRegistry（id={@link RegistryIds#AI}）：process_ai → {@link ProcessAiFactory}，
@@ -40,19 +43,18 @@ public final class AiModeDefaults {
         String modId = SmarterTouhouMaids.MOD_ID;
 
         ResourceLocation agentDefault = new ResourceLocation(modId, "smarter");
-        ResourceLocation nnDefault = new ResourceLocation(modId, "bnn");
+        ResourceLocation nnDefault = new ResourceLocation(modId, StandardBnnModes.NN_ID); // 核心默认 nn = standard_bnn（带门控重连的 bnn）
         ResourceLocation processDefault = new ResourceLocation(modId, "urana");
         ResourceLocation aiDefault = new ResourceLocation(modId, "process_ai");
         ResourceLocation sensorDefault = new ResourceLocation(modId, "possession_sensor");
         ResourceLocation effectorDefault = new ResourceLocation(modId, "bionic_muscle_effector");
 
         // === NnRegistry：叶子层，subRegistryId=null ===
+        // standard_bnn（核心默认 nn）自包含注册：id/名/factory 由 StandardBnnModes 声明，本处只取 entry。
+        // 原初 bnn 不在此登记：它由 original_bnn.BnnRegistration 经 Forge @EventBusSubscriber 以附属模组方式自注册
+        // （与真正附属模组注册路径一致，original_bnn.BnnRegistration 即附属模组样板）。
         Registry<NnFactory> nnRegistry = new Registry<>(RegistryIds.NN, nnDefault);
-        nnRegistry.register(new RegistryEntry<>(
-                nnDefault,
-                "mode." + modId + ".nn.bnn",
-                new BnnNnFactory(),
-                null)); // 叶子，无下层
+        nnRegistry.register(StandardBnnModes.nnEntry(modId));
         RegistryManager.INSTANCE.register(nnRegistry);
 
         // === ProcessRegistry：subRegistryId=NN（选了 process 后还要选 nn）===

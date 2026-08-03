@@ -3,7 +3,7 @@ package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.BoolVector;
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.IntVector;
 
-public class GradientOps {
+public class BnnGradientOps {
     public static void backwardLayer(
             IntVector da0,
             IntVector da1,
@@ -18,7 +18,7 @@ public class GradientOps {
             int n_curr,
             int n_prev,
             long stream) {
-        GradientOpsNative._backwardLayer(
+        BnnGradientOpsNative._backwardLayer(
                 da0.requireHandle(),
                 da1.requireHandle(),
                 fz.requireHandle(),
@@ -49,7 +49,7 @@ public class GradientOps {
             int n_curr,
             int n_prev,
             long stream) {
-        GradientOpsNative._backwardGradientDescentLayer(
+        BnnGradientOpsNative._backwardGradientDescentLayer(
                 da0.requireHandle(),
                 da1.requireHandle(),
                 a_prev.requireHandle(),

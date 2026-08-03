@@ -2,11 +2,11 @@ package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_
 
 import java.io.IOException;
 
-public class NetworkData implements AutoCloseable {
-    private Hyperparameters hyperparameters;
+public class BnnNetworkData implements AutoCloseable {
+    private BnnHyperparameters hyperparameters;
 
-    public NetworkData(int sizeA0, int sizeA1, boolean overwrite) throws IOException {
-        this.hyperparameters = new Hyperparameters(sizeA0, sizeA1);
+    public BnnNetworkData(int sizeA0, int sizeA1, boolean overwrite) throws IOException {
+        this.hyperparameters = new BnnHyperparameters(sizeA0, sizeA1);
     }
 
     /**
@@ -19,16 +19,16 @@ public class NetworkData implements AutoCloseable {
     /**
      * 从磁盘自动加载模型，无需手动指定维度。
      */
-    public static NetworkData loadFromFile(String folderPath) {
-        Hyperparameters hp = Hyperparameters.loadFromFile(folderPath);
-        return new NetworkData(hp);
+    public static BnnNetworkData loadFromFile(String folderPath) {
+        BnnHyperparameters hp = BnnHyperparameters.loadFromFile(folderPath);
+        return new BnnNetworkData(hp);
     }
 
-    private NetworkData(Hyperparameters hyperparameters) {
+    private BnnNetworkData(BnnHyperparameters hyperparameters) {
         this.hyperparameters = hyperparameters;
     }
 
-    public Hyperparameters getHyperparameters() {
+    public BnnHyperparameters getHyperparameters() {
         return hyperparameters;
     }
 

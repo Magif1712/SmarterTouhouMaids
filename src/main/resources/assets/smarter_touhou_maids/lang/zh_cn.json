@@ -18,6 +18,7 @@
   "mode.smarter_touhou_maids.ai.process_ai": "流程型 AI",
   "mode.smarter_touhou_maids.process.urana": "Urana 流程系统",
   "mode.smarter_touhou_maids.nn.bnn": "二值神经网络",
+  "mode.smarter_touhou_maids.nn.standard_bnn": "标准二值神经网络（惊跳反射）",
   "mode.smarter_touhou_maids.sensor.possession_sensor": "附身感受器",
   "mode.smarter_touhou_maids.effector.bionic_muscle_effector": "仿生肌肉效应器",
   "panel.smarter_touhou_maids.mode_selector": "Smarter 各层级模式选择",
