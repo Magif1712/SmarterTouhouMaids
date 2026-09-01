@@ -3,7 +3,7 @@ package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_
 /**
  * 感受器工厂：按感觉缓冲区尺寸创建一个 {@link ISensor} 实例。
  * <p>
- * <b>叶子工厂</b>（镜像 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.NnFactory}）：
+ * <b>叶子工厂</b>（镜像 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process_original.nn.NnFactory}）：
  * 感受器是组装链的叶子，不查下层 registry（感受器之下无选择）。
  * <p>
  * <b>签名仅含感受器本征尺寸</b>（真善美第1条"真"）：feelingSize 是任何感受器实现都必需的本征参数

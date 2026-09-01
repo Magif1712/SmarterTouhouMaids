@@ -3,6 +3,7 @@ package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.VectorBase;
 import com.github.magif1712.smarter_touhou_maids.core.execution.event.Event;
 import com.github.magif1712.smarter_touhou_maids.core.execution.MappedGenerationBuffer;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.SaveSlot;
 
 /**
  * 流程系统的顶层抽象边界（意识体契约）。
@@ -15,12 +16,12 @@ import com.github.magif1712.smarter_touhou_maids.core.execution.MappedGeneration
  *       具体流程系统的实现，不进本接口。换流程系统（urana→别的）时，实现 IProcessSystem 即可，
  *       外周（SmarterClientService）运行期零改动。</li>
  *   <li><b>第3条</b>：把"可替换流程系统"这个不实在的约束，用实在的接口（有签名的方法）固化。
- *       与 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.INeuralNetwork}
+ *       与 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process_original.nn.INeuralNetwork}
  *       固化"可替换 NN"同构——nn 层与流程层各自有抽象边界，形成对称结构。</li>
  * </ul>
  * <p>
  * <b>与 INeuralNetwork 的分层</b>：本接口是流程系统对<b>外周</b>的契约（感觉/行为/启停）；
- * {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.INeuralNetwork}
+ * {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process_original.nn.INeuralNetwork}
  * 是 NN 对<b>流程系统</b>的契约（前向/反向/区域读写）。两层正交：换 nn 不影响本接口，
  * 换流程系统不影响 INeuralNetwork。UranaSystem 同时是这两层的消费者——它实现本接口对外服务，
  * 内部持 INeuralNetwork 做计算。
@@ -29,7 +30,7 @@ import com.github.magif1712.smarter_touhou_maids.core.execution.MappedGeneration
  * （由 UranaSystem 构造函数接收）。本接口的 {@link #setDtDebugEnabled} 只控制"是否打印 dt 日志"
  * 这个通用诊断开关，dt 的语义（哪几个环、间隔含义）由实现自管。
  *
- * @see com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.UranaSystem
+ * @see com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process_original.UranaSystem
  */
 public interface IProcessSystem extends AutoCloseable {
 
@@ -52,11 +53,18 @@ public interface IProcessSystem extends AutoCloseable {
     void shutdown();
 
     /**
-     * 将意识体核心网络序列化到磁盘。
+     * 将意识体核心状态序列化到磁盘（在 shutdown 释放显存前调用）。
+     * <p>
+     * <b>时机对称</b>（C3）：与 {@code load}（create 时）对称，save 在 shutdown 前。
+     * 实现应先停止内部工作线程保证一致快照（无并发 GPU 读写），再 D2H + 写文件，
+     * 不释放显存（释放由后续 {@link #shutdown} 负责）。
+     * <p>
+     * <b>每层自管持久化</b>（C2）：实现用 {@link SaveSlot#layerPath(String)} 问自己的目录，
+     * 上层不感知下层文件格式。
      *
-     * @param folderPath 目标文件夹路径。
+     * @param slot 持久化槽位。
      */
-    void save(String folderPath);
+    void save(SaveSlot slot);
 
     /**
      * dt 调试开关：开启时每轮输出轮间时间间隔到日志。关闭时零性能损失。

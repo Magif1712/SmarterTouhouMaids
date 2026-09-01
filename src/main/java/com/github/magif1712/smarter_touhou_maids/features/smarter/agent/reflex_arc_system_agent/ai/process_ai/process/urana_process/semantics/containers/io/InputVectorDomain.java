@@ -1,56 +1,47 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.semantics.containers.io;
 
-import com.github.magif1712.smarter_touhou_maids.core.containers.domain.Domain;
-import com.github.magif1712.smarter_touhou_maids.core.containers.domain.Span;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.nn.NnEncodingProfile;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.semantics.containers.io.subspan.FeelingBehaviorSamplingDtSpan;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.semantics.containers.io.subspan.FeelingSpan;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.semantics.containers.io.subspan.InheritanceInfoSpan;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.semantics.containers.io.subspan.TargetTimeOrientationSpan;
 
 /**
- * InputVector 的语义布局描述符。
+ * 输入向量域：按 profile 把输入向量实在化为 C@F@G@dt 四段布局（真善美第4条）。
  * <p>
- * 这个类是一个纯粹的、无状态的域描述符。它只知道如何将一个逻辑上的输入向量
- * 分割为多个具有语义的子域（Span），如“感觉”、“目标时间”等。
- * 它不持有任何对底层数据容器的引用，也没有任何数据操作方法。
+ * 布局顺序：继承信息 C → feeling F → 时间方位 G → 采样时间间隔 dt。
+ * <p>
+ * 设计原则（真善美第3条）：布局长度取自 profile（换 nn 时跟着换），urana 不感知具体长度。
  */
-public class InputVectorDomain extends Domain<Span> {
-    // --- 子域长度定义 ---
-    // 结构: C, F, G, dt
-    public static final int FEELING_SPAN_LENGTH = 1920 * 1080 * 24; // F
-    public static final int TARGET_TIME_ORIENTATION_SPAN_LENGTH = 4; // G
-    public static final int FEELING_BEHAVIOR_SAMPLING_DT_SPAN_LENGTH = 64; // dt
-    public static final int INHERITANCE_INFO_SPAN_LENGTH = FEELING_SPAN_LENGTH * 3; // C
+public class InputVectorDomain {
+    public static final int INHERITANCE_MULTIPLIER = 3;
+    public static final int TIME_ORIENTATION_COUNT = 4;
 
-    public static final int TOTAL_LENGTH = FEELING_SPAN_LENGTH +
-            TARGET_TIME_ORIENTATION_SPAN_LENGTH +
-            FEELING_BEHAVIOR_SAMPLING_DT_SPAN_LENGTH +
-            INHERITANCE_INFO_SPAN_LENGTH;
+    private final int totalLength;
+    private final InheritanceInfoSpan inheritanceInfoSpan;
+    private final FeelingSpan feelingSpan;
+    private final TargetTimeOrientationSpan targetTimeOrientationSpan;
+    private final FeelingBehaviorSamplingDtSpan feelingBehaviorSamplingDtSpan;
 
-    private final FeelingSpan feelingSpan; // F
-    private final TargetTimeOrientationSpan targetTimeOrientationSpan; // G
-    private final FeelingBehaviorSamplingDtSpan feelingBehaviorSamplingDtSpan; // dt
-    private final InheritanceInfoSpan inheritanceInfoSpan; // C
+    public InputVectorDomain(NnEncodingProfile profile) {
+        int cLen = profile.getFeelingLength() * INHERITANCE_MULTIPLIER;
+        int fLen = profile.getFeelingLength();
+        int gLen = profile.getTimeOrientationUnitLength() * TIME_ORIENTATION_COUNT;
+        int dtLen = profile.getDtLength();
+        this.totalLength = cLen + fLen + gLen + dtLen;
 
-    public InputVectorDomain() {
         int currentOffset = 0;
+        this.inheritanceInfoSpan = new InheritanceInfoSpan(currentOffset, cLen);
+        currentOffset += cLen;
+        this.feelingSpan = new FeelingSpan(currentOffset, fLen);
+        currentOffset += fLen;
+        this.targetTimeOrientationSpan = new TargetTimeOrientationSpan(currentOffset, gLen);
+        currentOffset += gLen;
+        this.feelingBehaviorSamplingDtSpan = new FeelingBehaviorSamplingDtSpan(currentOffset, dtLen);
+    }
 
-        // C: 系统状态层（最稳定）
-        this.inheritanceInfoSpan = new InheritanceInfoSpan(currentOffset, INHERITANCE_INFO_SPAN_LENGTH);
-        currentOffset += INHERITANCE_INFO_SPAN_LENGTH;
-
-        // F: 感知输入层（实时更新）
-        this.feelingSpan = new FeelingSpan(currentOffset, FEELING_SPAN_LENGTH);
-        currentOffset += FEELING_SPAN_LENGTH;
-
-        // G: 辅助参数层（微小数据）
-        this.targetTimeOrientationSpan = new TargetTimeOrientationSpan(currentOffset,
-                TARGET_TIME_ORIENTATION_SPAN_LENGTH);
-        currentOffset += TARGET_TIME_ORIENTATION_SPAN_LENGTH;
-
-        // dt: 辅助参数层（微小数据）
-        this.feelingBehaviorSamplingDtSpan = new FeelingBehaviorSamplingDtSpan(currentOffset,
-                FEELING_BEHAVIOR_SAMPLING_DT_SPAN_LENGTH);
+    public int totalLength() {
+        return totalLength;
     }
 
     public FeelingSpan getFeelingSpan() {
@@ -67,13 +58,5 @@ public class InputVectorDomain extends Domain<Span> {
 
     public TargetTimeOrientationSpan getTargetTimeOrientationSpan() {
         return targetTimeOrientationSpan;
-    }
-
-    @Override
-    public boolean contains(Span element) {
-        return element == feelingSpan ||
-                element == targetTimeOrientationSpan ||
-                element == feelingBehaviorSamplingDtSpan ||
-                element == inheritanceInfoSpan;
     }
 }

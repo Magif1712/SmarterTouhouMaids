@@ -8,7 +8,7 @@ import com.github.magif1712.smarter_touhou_maids.core.execution.stream.Stream;
  * 感受器的机械级抽象边界（agent 的"眼"）。
  * <p>
  * 镜像 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.IAiSystem}
- * （思考机制契约）与 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.INeuralNetwork}
+ * （思考机制契约）与 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process_original.nn.INeuralNetwork}
  * （nn 契约）：上层 agent 持本接口引用，感受器实现可替换，换感受器时 agent 零改动。
  * <p>
  * 设计原则（真善美）：

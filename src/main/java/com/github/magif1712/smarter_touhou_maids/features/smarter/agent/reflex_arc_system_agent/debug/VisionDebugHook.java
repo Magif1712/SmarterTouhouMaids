@@ -1,12 +1,12 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.debug;
 
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.BoolVector;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.param.ParamStore;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.core.PossessionManager;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.IAgent;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.SmarterClientService;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ReflexArcSystemAgent;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
+import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.event.TickEvent;
@@ -21,6 +21,20 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 
+/**
+ * 视觉调试钩子：感受器调试的“开关 + 观察”模式——把 AI 视觉 feeling buffer 周期性 dump 成 PNG。
+ * <p>
+ * <b>per-maid 开关</b>（真善美第1条“善”：消除 global state）：开关状态不再以单例 volatile 字段留存，
+ * 改存 {@link ParamStore}（maid NBT，随存档走，网络同步）。{@link #onClientTick} 自驱每 tick 读
+ * ParamStore(maid) 判断。主线程 20Hz，读 ParamStore（HashMap 查询）开销微。
+ * <p>
+ * <b>零性能损失核心</b>（真善美第3条：把“是否在调试中”这个不实在概念用实在的 ParamStore 读取固化）：
+ * 关闭时 {@link #onClientTick} 在 possessing 检查后即 return，后续 copyToHost/像素重建/写盘全不执行。
+ * <p>
+ * 模式分层（真善美第2条）：上层（与 EffectorDebugHook 同构）开关 + 读 + 短路；
+ * 下层（感受器特有）自驱 @SubscribeEvent + copyToHost + 重建图像 + 写盘——因 feeling 在 GPU，
+ * 必须自驱从 GPU 取回，不能像 EffectorDebugHook 那样被动接收已在 CPU 的 ActionIntent。
+ */
 @OnlyIn(Dist.CLIENT)
 public enum VisionDebugHook {
     INSTANCE;
@@ -37,40 +51,27 @@ public enum VisionDebugHook {
     private int tickCounter = 0;
     private boolean reportedFirstState = false;
 
-    /**
-     * 调试开关（实在的开关状态，承载不实在的“是否在调试中”概念）。
-     * 默认关闭：游戏启动时不产生任何 dump 开销。
-     * volatile：由 AutoTaskConfigScreen 的 UI 线程写入，onClientTick 读取，保证可见性。
-     */
-    private volatile boolean enabled = false;
+    /** per-maid NBT key（存 ParamStore，随 maid 存档走）。public 供 factory 声明 ParamOption 引用。 */
+    public static final String KEY_VISION_DEBUG_ENABLED = "visionDebugEnabled";
 
     /**
-     * 设置调试开关状态。由 AutoTaskConfigScreen 的“AI视觉调试”按钮（模式1：UI 触发）调用。
-     * 开启后下一 tick 起按 DUMP_INTERVAL 开始 dump；
-     * 关闭后立即在 onClientTick 入口短路，调试逻辑零执行（零性能损失）。
+     * 读 per-maid 开关（供 factory 声明 ParamOption 回显 + onClientTick 消费点判断）。
+     * maid 为 null 时返回默认 false。
      */
-    public void setEnabled(boolean value) {
-        if (this.enabled == value) return;
-        this.enabled = value;
-        LOGGER.info("[VisionDebug] 调试已{}", value ? "开启" : "关闭");
-        Minecraft mc = Minecraft.getInstance();
-        if (mc != null && mc.player != null) {
-            mc.player.sendSystemMessage(Component.translatable(
-                    value ? "msg.smarter_touhou_maids.vision_debug.on"
-                            : "msg.smarter_touhou_maids.vision_debug.off"));
-        }
-    }
-
-    public boolean isEnabled() {
-        return enabled;
+    public static boolean isVisionDebugEnabled(EntityMaid maid) {
+        return Boolean.parseBoolean(
+                ParamStore.INSTANCE.getString(maid, KEY_VISION_DEBUG_ENABLED, "false"));
     }
 
     @SubscribeEvent
     public void onClientTick(TickEvent.ClientTickEvent event) {
-        // 零性能损失核心：关闭时第一行即返回，后续 copyToHost/像素重建/写盘全不执行。
-        if (!enabled) return;
         if (event.phase != TickEvent.Phase.END) return;
         if (!PossessionManager.INSTANCE.isPossessing()) return;
+        // per-maid 开关：先取附身 maid（已确认 possessing，必非空），再读 ParamStore 判断。
+        // 顺序：phase/possessing 是便宜检查在前，ParamStore 读取在后（未附身时不读 ParamStore）。
+        EntityMaid maid = PossessionManager.INSTANCE.getPossessedMaid();
+        // 零性能损失核心：关闭时即返回，后续 copyToHost/像素重建/写盘全不执行。
+        if (!isVisionDebugEnabled(maid)) return;
 
         tickCounter++;
         if (tickCounter < DUMP_INTERVAL) return;

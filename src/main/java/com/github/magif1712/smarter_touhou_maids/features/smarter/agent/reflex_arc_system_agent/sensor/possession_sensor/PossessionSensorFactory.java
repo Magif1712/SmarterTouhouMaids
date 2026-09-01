@@ -1,7 +1,7 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor;
 
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.debug.DebugOption;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.debug.DebugPanelProvider;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.param.ParamOption;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.debug.VisionDebugHook;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.SensorFactory;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.ISensor;
@@ -19,9 +19,9 @@ import java.util.List;
  * 分辨率与位平面排布（R/G/B 各 8 bit 平面 = 24 bit/pixel）。尺寸不符直接抛异常——
  * 真善美第3条：把"尺寸契约"这个不实在的约束，用实在的运行时校验固化。
  * <p>
- * <b>调试项</b>：实现 {@link DebugPanelProvider} 暴露 Vision 调试开关。
- * Vision 调试是 sensor 层（视觉采集）的内部模式，状态存储在 {@link VisionDebugHook} 单例（不依赖 agent 实例），
- * 故附身前即可配置。
+ * <b>调试项</b>：实现 {@link DebugPanelProvider} 暴露 Vision 调试开关（controlHint="toggle" 的 {@link ParamOption}）。
+ * Vision 调试是 sensor 层（视觉采集）的内部模式，状态 per-maid 存 ParamStore（随 maid 存档走），
+ * 经 {@link VisionDebugHook#KEY_VISION_DEBUG_ENABLED} 键控，消费点（onClientTick）读 ParamStore——故附身前即可配置。
  */
 public class PossessionSensorFactory implements SensorFactory, DebugPanelProvider {
 
@@ -38,12 +38,12 @@ public class PossessionSensorFactory implements SensorFactory, DebugPanelProvide
     }
 
     @Override
-    public List<DebugOption> getDebugOptions() {
+    public List<ParamOption> getDebugOptions() {
         return List.of(
-                DebugOption.onOff(
+                ParamOption.persistable(
                         Component.translatable("debug.smarter_touhou_maids.vision"),
                         Component.translatable("debug.smarter_touhou_maids.vision.tooltip"),
-                        VisionDebugHook.INSTANCE::isEnabled,
-                        VisionDebugHook.INSTANCE::setEnabled));
+                        VisionDebugHook.KEY_VISION_DEBUG_ENABLED, "false")
+                        .withControlHint("toggle"));
     }
 }

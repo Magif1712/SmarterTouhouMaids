@@ -1,8 +1,8 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.debug;
 
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.param.ParamStore;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.effector.ActionIntent;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
+import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import org.slf4j.Logger;
@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  * 模式分层（真善美第2条：上层模式相同，下层实现因领域不同而不同）：
  * <ul>
- *   <li>上层（与感受器调试同构）：volatile 开关 + setEnabled/isEnabled + 入口短路。</li>
+ *   <li>上层（与感受器调试同构）：开关（per-maid 存 ParamStore）+ 读开关 + 入口短路。</li>
  *   <li>下层（与感受器调试不同构，这是真善美而非强行同构）：
  *       感受器数据在 GPU，需自驱 {@code @SubscribeEvent} + copyToHost + 重建图像 + 写盘；
  *       效应器输出（ActionIntent）已在 CPU，正常路径已产出，故本钩子<b>被动</b>由
@@ -22,8 +22,14 @@ import org.slf4j.LoggerFactory;
  *       调用 {@link #log}——无需订阅 tick 事件，无需重复解码。</li>
  * </ul>
  * <p>
- * 零性能损失核心（真善美第3条：把“是否在调试中”这个不实在的概念用实在的 volatile boolean 固化）：
- * 关闭时 {@link #log} 第一行即 return，后续格式化全不执行。开启时由调用方每客户端 tick（20Hz）调用。
+ * <b>per-maid 开关</b>（真善美第1条“善”：消除 global state）：开关状态不再以单例 volatile 字段留存，
+ * 改存 {@link ParamStore}（maid NBT，随存档走，网络同步）。{@link #log} 每次调用读 ParamStore(maid) 判断。
+ * 主线程 onClientTick 20Hz 调用，读 ParamStore（HashMap 查询）开销微，无需缓存。
+ * 与 dtDebug 的“缓存到字段”模式不同——dtDebug 在 GPU 高频线程，需 setDtDebugEnabled 缓存；
+ * 本钩子在低频主线程，直读即可（消费频率差异决定模式差异，真善美而非强行同构）。
+ * <p>
+ * <b>零性能损失核心</b>（真善美第3条：把“是否在调试中”这个不实在概念用实在的 ParamStore 读取固化）：
+ * 关闭时 {@link #log} 第一行即 return，后续格式化全不执行。
  */
 @OnlyIn(Dist.CLIENT)
 public enum EffectorDebugHook {
@@ -34,32 +40,16 @@ public enum EffectorDebugHook {
     /** 连续值视为零的阈值：|v| ≤ 此值显示为“—”，避免低通滤波残余刷屏。 */
     private static final float DEAD_ZONE = 0.005f;
 
-    /**
-     * 调试开关（实在的开关状态，承载不实在的“是否在调试中”概念）。
-     * 默认关闭：游戏启动时不产生任何输出开销。
-     * volatile：由 AutoTaskConfigScreen 的 UI 线程写入，onClientTick 线程读取，保证可见性。
-     */
-    private volatile boolean enabled = false;
+    /** per-maid NBT key（存 ParamStore，随 maid 存档走）。public 供 factory 声明 ParamOption 引用。 */
+    public static final String KEY_EFFECTOR_DEBUG_ENABLED = "effectorDebugEnabled";
 
     /**
-     * 设置调试开关状态。由 AutoTaskConfigScreen 的“效应器调试”按钮（UI 触发）调用。
-     * 开启后下一 tick 起每 tick 输出效应器指令到终端；
-     * 关闭后立即在 {@link #log} 入口短路，调试逻辑零执行（零性能损失）。
+     * 读 per-maid 开关（供 factory 声明 ParamOption 回显 + log 消费点判断）。
+     * maid 为 null 时返回默认 false。
      */
-    public void setEnabled(boolean value) {
-        if (this.enabled == value) return;
-        this.enabled = value;
-        LOGGER.info("[EffectorDebug] 调试已{}", value ? "开启" : "关闭");
-        Minecraft mc = Minecraft.getInstance();
-        if (mc != null && mc.player != null) {
-            mc.player.sendSystemMessage(Component.translatable(
-                    value ? "msg.smarter_touhou_maids.effector_debug.on"
-                            : "msg.smarter_touhou_maids.effector_debug.off"));
-        }
-    }
-
-    public boolean isEnabled() {
-        return enabled;
+    public static boolean isEffectorDebugEnabled(EntityMaid maid) {
+        return Boolean.parseBoolean(
+                ParamStore.INSTANCE.getString(maid, KEY_EFFECTOR_DEBUG_ENABLED, "false"));
     }
 
     /**
@@ -69,10 +59,11 @@ public enum EffectorDebugHook {
      * 由 {@code ReflexArcSystemAgent.onClientTick} 在效应器 {@code tick} 产出 intent 后调用。
      *
      * @param intent 本 tick 解码出的操作要求（复用实例，调用方立即消费）。
+     * @param maid   当前女仆（per-maid 读 ParamStore 判断开关）。
      */
-    public void log(ActionIntent intent) {
+    public void log(ActionIntent intent, EntityMaid maid) {
         // 零性能损失核心：关闭时第一行即返回。
-        if (!enabled) return;
+        if (!isEffectorDebugEnabled(maid)) return;
         LOGGER.info("[EffectorDebug] {}", formatIntent(intent));
     }
 

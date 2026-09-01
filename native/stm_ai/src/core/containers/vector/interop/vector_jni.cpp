@@ -3,6 +3,8 @@
 #include <vector>
 #include <memory>
 #include <exception>
+#include <filesystem>
+#include <string>
 #include "../../../interop/jni_helper.h"
 #include "vector_bridge.h"
 
@@ -13,6 +15,29 @@
 //
 // stream 参数：jlong stream_handle 经 reinterpret_cast<cudaStream_t> 透传给 bridge。
 // Java 侧无 stream 重载的方法统一传 0L（NULL 流，同步语义）。
+
+// 把 Java jstring (UTF-16) 忠实地转为 std::filesystem::path。
+// 走 GetStringChars (UTF-16) → std::u16string → std::filesystem::path：
+//   - 不经过 GetStringUTFChars 的 modified-UTF-8（补充平面字符会被编成 CESU-8 双 3 字节，
+//     而非标准 UTF-8 4 字节，emoji 世界名会出错）；
+//   - 不经过 Windows ANSI 代码页（std::string 路径在 MSVC 下被按 ACP 解释，
+//     中文路径会让 std::ofstream 打开失败）。
+// std::filesystem::path 是 C++17 标准的“路径名字”原语——Windows 内部存 UTF-16、
+// Linux 内部存 UTF-8，并正确交给平台文件 API，从根上消除“字节当名字”的编码类别错误。
+static std::filesystem::path jstringToPath(JNIEnv *env, jstring filename)
+{
+    const jchar *chars = env->GetStringChars(filename, nullptr);
+    jsize len = env->GetStringLength(filename);
+    std::filesystem::path path;
+    if (chars && len > 0)
+    {
+        std::u16string u16(reinterpret_cast<const char16_t *>(chars), static_cast<size_t>(len));
+        path = std::filesystem::path(u16);
+    }
+    if (chars)
+        env->ReleaseStringChars(filename, chars);
+    return path;
+}
 
 extern "C"
 {
@@ -135,9 +160,8 @@ extern "C"
             if (!vec || !filename)
                 return;
 
-            const char *c_filename = env->GetStringUTFChars(filename, nullptr);
-            VectorSaveBool(vec, c_filename);
-            env->ReleaseStringUTFChars(filename, c_filename);
+            std::filesystem::path path = jstringToPath(env, filename);
+            VectorSaveBool(vec, path);
         }
         JNI_CATCH_TRANSLATE(env, "_saveBool")
     }
@@ -150,9 +174,8 @@ extern "C"
             if (!vec || !filename)
                 return;
 
-            const char *c_filename = env->GetStringUTFChars(filename, nullptr);
-            VectorLoadFromFileBool(vec, c_filename);
-            env->ReleaseStringUTFChars(filename, c_filename);
+            std::filesystem::path path = jstringToPath(env, filename);
+            VectorLoadFromFileBool(vec, path);
         }
         JNI_CATCH_TRANSLATE(env, "_loadFromFileBool")
     }
@@ -239,9 +262,8 @@ extern "C"
             if (!vec || !filename)
                 return;
 
-            const char *c_filename = env->GetStringUTFChars(filename, nullptr);
-            VectorSaveInt(vec, c_filename);
-            env->ReleaseStringUTFChars(filename, c_filename);
+            std::filesystem::path path = jstringToPath(env, filename);
+            VectorSaveInt(vec, path);
         }
         JNI_CATCH_TRANSLATE(env, "_saveInt")
     }
@@ -254,9 +276,8 @@ extern "C"
             if (!vec || !filename)
                 return;
 
-            const char *c_filename = env->GetStringUTFChars(filename, nullptr);
-            VectorLoadFromFileInt(vec, c_filename);
-            env->ReleaseStringUTFChars(filename, c_filename);
+            std::filesystem::path path = jstringToPath(env, filename);
+            VectorLoadFromFileInt(vec, path);
         }
         JNI_CATCH_TRANSLATE(env, "_loadFromFileInt")
     }

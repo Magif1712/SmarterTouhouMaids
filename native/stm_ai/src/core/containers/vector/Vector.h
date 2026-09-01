@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstring>
 #include <fstream>
+#include <filesystem>
 
 #include "core/utils/CudaBitUtils.h"
 
@@ -161,11 +162,11 @@ public:
         checkCudaError(err, "Failed to copy region from host to vector");
     }
 
-    void save(const std::string &filename) const
+    void save(const std::filesystem::path &filename) const
     {
         std::ofstream ofs(filename, std::ios::binary);
         if (!ofs)
-            throw std::runtime_error("Failed to open file for saving: " + filename);
+            throw std::runtime_error("Failed to open file for saving: " + filename.u8string());
 
         ofs.write(reinterpret_cast<const char *>(&m_size), sizeof(m_size));
 
@@ -177,11 +178,11 @@ public:
         }
     }
 
-    void loadFromFile(const std::string &filename)
+    void loadFromFile(const std::filesystem::path &filename)
     {
         std::ifstream ifs(filename, std::ios::binary);
         if (!ifs)
-            throw std::runtime_error("Failed to open file for loading: " + filename);
+            throw std::runtime_error("Failed to open file for loading: " + filename.u8string());
 
         size_t saved_size;
         ifs.read(reinterpret_cast<char *>(&saved_size), sizeof(saved_size));
@@ -193,7 +194,7 @@ public:
             std::vector<T> h_data(saved_size);
             ifs.read(reinterpret_cast<char *>(h_data.data()), bytes());
             if (!ifs)
-                throw std::runtime_error("Error reading data from file: " + filename);
+                throw std::runtime_error("Error reading data from file: " + filename.u8string());
             copyFromHost(h_data.data(), saved_size);
         }
     }
@@ -392,11 +393,11 @@ public:
         checkCudaError(err, "Failed to synchronize stream after async D2H (Vector<bool>)");
     }
 
-    void save(const std::string &filename) const
+    void save(const std::filesystem::path &filename) const
     {
         std::ofstream ofs(filename, std::ios::binary);
         if (!ofs)
-            throw std::runtime_error("Failed to open file for saving: " + filename);
+            throw std::runtime_error("Failed to open file for saving: " + filename.u8string());
 
         ofs.write(reinterpret_cast<const char *>(&m_size), sizeof(m_size));
 
@@ -408,11 +409,11 @@ public:
         }
     }
 
-    void loadFromFile(const std::string &filename)
+    void loadFromFile(const std::filesystem::path &filename)
     {
         std::ifstream ifs(filename, std::ios::binary);
         if (!ifs)
-            throw std::runtime_error("Failed to open file for loading: " + filename);
+            throw std::runtime_error("Failed to open file for loading: " + filename.u8string());
 
         size_t saved_size;
         ifs.read(reinterpret_cast<char *>(&saved_size), sizeof(saved_size));
@@ -424,7 +425,7 @@ public:
             std::vector<uint32_t> h_data(wordCount());
             ifs.read(reinterpret_cast<char *>(h_data.data()), bytes());
             if (!ifs)
-                throw std::runtime_error("Error reading bit-packed data from file: " + filename);
+                throw std::runtime_error("Error reading bit-packed data from file: " + filename.u8string());
             copyFromHost(h_data.data(), wordCount());
         }
     }

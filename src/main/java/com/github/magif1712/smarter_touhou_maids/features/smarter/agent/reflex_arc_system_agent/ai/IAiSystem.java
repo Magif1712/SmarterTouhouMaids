@@ -3,6 +3,7 @@ package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.VectorBase;
 import com.github.magif1712.smarter_touhou_maids.core.execution.event.Event;
 import com.github.magif1712.smarter_touhou_maids.core.execution.MappedGenerationBuffer;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.SaveSlot;
 
 /**
  * AI 系统的顶层抽象边界（外周契约）。
@@ -47,11 +48,14 @@ public interface IAiSystem extends AutoCloseable {
     void shutdown();
 
     /**
-     * 将 ai 核心状态序列化到磁盘。
+     * 将 ai 核心状态序列化到磁盘（在 shutdown 释放显存前调用）。
+     * <p>
+     * 实现应先停止内部工作线程保证一致快照，再委托下层 process 各自 save，
+     * 不释放显存（释放由后续 {@link #shutdown} 负责）。
      *
-     * @param folderPath 目标文件夹路径。
+     * @param slot 持久化槽位（各层用 {@link SaveSlot#layerPath(String)} 问自己的目录）。
      */
-    void save(String folderPath);
+    void save(SaveSlot slot);
 
     /**
      * dt 调试开关：开启时输出轮间时间间隔到日志。关闭时零性能损失。

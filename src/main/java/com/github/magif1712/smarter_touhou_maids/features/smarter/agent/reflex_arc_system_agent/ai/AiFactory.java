@@ -1,5 +1,6 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai;
 
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.SaveSlot;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.nbt.CompoundTag;
 
@@ -14,8 +15,8 @@ import net.minecraft.nbt.CompoundTag;
  * <b>config 各取所需</b>：config 是一个 CompoundTag，含所有层的选择 id（key = registryId.toString()）。
  * 本工厂只读自己需要的 key（processId），忽略其余。
  * <p>
- * <b>maid 透传</b>（真善美第3条）：maid 透传给下层 process factory，供其经 ParamStore 读自己声明的
- * per-maid 参数（如 urana 节律参数）。本层不直接用 maid，但需向下传递。
+ * <b>maid/slot 透传</b>（真善美第3条）：maid 透传给下层 process factory，供其经 ParamStore 读自己声明的
+ * per-maid 参数（如 urana 节律参数）。slot 透传给下层供其 load 持久化数据。本层不直接用 maid/slot，但需向下传递。
  * <p>
  * 纯规则 ai 的工厂实现不查 ProcessRegistry，直接 new RuleBasedAi(...)（config 里读自己需要的参数）。
  */
@@ -24,7 +25,8 @@ public interface AiFactory {
     /**
      * @param config 配置载体（含各层 mode id），各 factory 各取所需。
      * @param maid   目标女仆（透传给下层 process factory，供其读 per-maid 参数）。
+     * @param slot   持久化槽位（透传给下层 process factory 供其 load 持久化数据）。
      * @return 创建好的 IAiSystem 实例（已注入下层，可直接 awaken）。
      */
-    IAiSystem create(CompoundTag config, EntityMaid maid);
+    IAiSystem create(CompoundTag config, EntityMaid maid, SaveSlot slot);
 }

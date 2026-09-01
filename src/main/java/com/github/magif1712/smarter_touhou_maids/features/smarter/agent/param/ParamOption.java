@@ -11,11 +11,10 @@ import java.util.function.Function;
 /**
  * 单个参数项：一个 agent 暴露给 GUI 的可配置项。
  * <p>
- * 与 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.debug.DebugOption} 对称：
- * DebugOption 是 final class + onOff 工厂 + getter/setter lambda；
- * ParamOption 是 final class + of/persistable 工厂 + currentText/commitText lambda。
- * 两者都通过 lambda 参数化实现行为多样性，不需要接口多态（无多模态——参数项的所有多样性
- * 由 lambda + hint/meta 槽位覆盖，不存在"结构不同的参数项"这种可切换模态）。
+ * 统一承载参数项与调试项（原 DebugOption 已并入）：final class + of/persistable 工厂 +
+ * currentText/commitText lambda。通过 lambda 参数化实现行为多样性，不需要接口多态
+ * （无多模态——参数项的所有多样性由 lambda + hint/meta 槽位覆盖，
+ * 不存在"结构不同的参数项"这种可切换模态；调试项 = controlHint="toggle" 的 ParamOption）。
  * <p>
  * <b>纯 text 透传</b>（真善美第4条）：管道只搬运 String，不感知值类型。
  * {@link #commitText} / {@link #currentText} 是 text 入口——UI 只调这两个方法，
@@ -44,7 +43,8 @@ import java.util.function.Function;
  * <p>
  * <b>行为多样性通过 lambda 参数化</b>（真善美第3条）：{@link #of} 接收任意 currentText/commitText
  * lambda——附属想要任何存储模型（自己的 NBT、自己的网络包、动态计算）都通过传不同 lambda 实现，
- * 不需要自实现类。与 DebugOption 通过 onOff 接收 getter/setter lambda 同构。
+ * 不需要自实现类。调试项（controlHint="toggle"）也复用本类——原 DebugOption 的 onOff 模式
+ * 由 of + controlHint="toggle" 统一承载（boolean 编码为 "true"/"false" String 透传）。
  * <p>
  * <b>通用工厂方法</b>（真善美第4条）：
  * <ul>

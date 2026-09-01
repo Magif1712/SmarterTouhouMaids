@@ -1,12 +1,13 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai;
 
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.SaveSlot;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.AiFactory;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.IAiSystem;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.IProcessSystem;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.ProcessFactory;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.ProcessAiRegistryIds;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.Registry;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryEntry;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryIds;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryManager;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.nbt.CompoundTag;
@@ -25,15 +26,15 @@ import net.minecraft.nbt.CompoundTag;
 public class ProcessAiFactory implements AiFactory {
 
     @Override
-    public IAiSystem create(CompoundTag config, EntityMaid maid) {
+    public IAiSystem create(CompoundTag config, EntityMaid maid, SaveSlot slot) {
         // === 查 ProcessRegistry 取下层 process factory（自驱组装）===
-        Registry<?> processRegistry = RegistryManager.INSTANCE.get(RegistryIds.PROCESS);
+        Registry<?> processRegistry = RegistryManager.INSTANCE.get(ProcessAiRegistryIds.PROCESS);
         RegistryEntry<?> processEntry =
-                processRegistry.resolve(config.getString(RegistryIds.PROCESS.toString()));
+                processRegistry.resolve(config.getString(ProcessAiRegistryIds.PROCESS.toString()));
         ProcessFactory processFactory = (ProcessFactory) processEntry.getFactory();
 
-        // 下层 process factory 自驱组装其内部 nn（config + maid 透传，各层各取所需）
-        IProcessSystem process = processFactory.create(config, maid);
+        // 下层 process factory 自驱组装其内部 nn（config + maid + slot 透传，各层各取所需）
+        IProcessSystem process = processFactory.create(config, maid, slot);
 
         // 注入构造（ProcessAiSystem 只直接用 process，不感知 nn）
         return new ProcessAiSystem(process);

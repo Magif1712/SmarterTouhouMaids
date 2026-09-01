@@ -1,6 +1,10 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent;
 
 import com.github.magif1712.smarter_touhou_maids.features.maid.compat.task.AutoTask;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.SaveSlot;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.SaveSlotFactory;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.PersistenceConfigProvider;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.WorldPersistenceDir;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.Registry;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryEntry;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryIds;
@@ -15,6 +19,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Path;
 import java.util.UUID;
 
 /**
@@ -64,6 +69,27 @@ public class SmarterClientService {
     private boolean wasActive = false;
     /** 最后一次 sync 的 maidUUID，供 shutdown 时 sync active=false（此时 maid 可能已 null）。 */
     private UUID lastMaidUUID = null;
+
+    /**
+     * 持久化上下文（init 时 maid 可用算好存储，shutdown 时 maid 可能已 null 但仍需 save/prune）。
+     * <p>
+     * <b>为何存 EntityMaid 引用</b>：shutdown 时取消附身后 maidSource.get() 可能返回 null，
+     * 但持久化仍需进行（save 训练成果 + prune 旧版本）。配置存 ParamStore（maid NBT，per-maid），
+     * 需 maid 读配置——故 init 时存 maid 引用，shutdown 用引用读 ParamStore。
+     * maid 实体对象在 shutdown 时仍存活（Java 引用未释放），NBT 可读（即使已从 level 移除）。
+     * <p>
+     * <b>pathDir 是 world-aware 的</b>：由 {@link WorldPersistenceDir#computeBaseDir()} 在 init 时算
+     * （单人=世界存档目录，多人=GAMEDIR/servers/&lt;ip&gt;），再拼 maidUUID + pathToken 得到。
+     * shutdown 时直接用此 pathDir 调 {@link SaveSlotFactory}——工厂不感知世界（真善美第3条）。
+     * <p>
+     * <b>sync 与持久化分离</b>：{@link #lastMaidUUID} 用于 sync（服务端只运行一个世界，UUID 在服务端
+     * 世界内唯一，世界上下文对服务端隐式）；{@link #persistMaid} + {@link #persistPathDir}
+     * 用于持久化（per-maid 配置 + world-aware 路径）。两个关注点各自用各自合适的标识，不混用。
+     */
+    private SaveSlot saveSlot = null;
+    private Path persistPathDir = null;
+    /** init 时的 maid 引用，供 shutdown 读 ParamStore 持久化配置（shutdown 时 maidSource 可能已 null）。 */
+    private EntityMaid persistMaid = null;
 
     /**
      * maid 来源（客户端）。由具体 agent 的 sensor 子系统在 client setup 阶段注入
@@ -143,12 +169,27 @@ public class SmarterClientService {
             config.merge(MaidSmarterState.getAiModes(maid));
         }
 
+        // 持久化槽位（C3/C4）：load 时取最新已有版本（无则新版本路径，各层 load 见文件缺失则保持默认）。
+        // maid 非空时（smarterReady=true 必然 maid 非空，因 isAutoTask(null)=false）算好 world-aware
+        // baseDir → pathDir，存储供 shutdown 用（shutdown 时 maid 可能已 null，但 save/prune 仍需进行）。
+        SaveSlot slot = null;
+        if (maid != null) {
+            String token = SmarterLayerWalker.pathToken(maid);
+            Path baseDir = WorldPersistenceDir.computeBaseDir();
+            Path pathDir = baseDir.resolve(maid.getUUID().toString()).resolve(token);
+            slot = SaveSlotFactory.latestOrNew(pathDir);
+            this.persistPathDir = pathDir;
+            this.persistMaid = maid;
+        }
+        this.saveSlot = slot;
+
         // 工厂自驱组装：外周只调顶层 agent factory，下层（ai→process→nn）组装自驱。
-        // config + maid 透传，各层 factory 各取所需（config 读 mode id，maid 读 per-maid 参数）。
+        // config + maid + slot 透传，各层 factory 各取所需（config 读 mode id，maid 读 per-maid 参数，
+        // slot 供 nn/process load 持久化数据）。
         Registry<?> agentRegistry = RegistryManager.INSTANCE.get(RegistryIds.AGENT);
         RegistryEntry<?> agentEntry = agentRegistry.resolve(config.getString(RegistryIds.AGENT.toString()));
         AgentFactory agentFactory = (AgentFactory) agentEntry.getFactory();
-        this.agent = agentFactory.create(config, maid);
+        this.agent = agentFactory.create(config, maid, slot);
         this.agent.awaken();
 
         this.initialized = true;
@@ -165,12 +206,31 @@ public class SmarterClientService {
             SmarterClientState.INSTANCE.setSmarterModeEnabled(lastMaidUUID, false);
             wasActive = false;
         }
+        // 持久化 save（C3 时机对称：在 agent.shutdown 释放显存前）。
+        // 用 init 时存储的 persistMaid 读 per-maid 配置（shutdown 时 maidSource 可能已 null，
+        // 但 persistMaid 引用仍存活，ParamStore 可读 maid NBT）。
+        if (agent != null && persistPathDir != null && persistMaid != null) {
+            boolean shouldSave = PersistenceConfigProvider.isPersistenceEnabled(persistMaid);
+            if (shouldSave) {
+                try {
+                    SaveSlot newSlot = SaveSlotFactory.newVersion(persistPathDir);
+                    agent.save(newSlot);
+                } catch (Exception e) {
+                    LOGGER.error("[ReflexArc] 持久化 save 失败", e);
+                }
+                SaveSlotFactory.pruneOldVersions(persistPathDir,
+                        PersistenceConfigProvider.getMaxRetention(persistMaid));
+            }
+        }
         if (agent != null) {
             agent.shutdown();
             agent = null;
         }
         initialized = false;
         lastMaidUUID = null;
+        saveSlot = null;
+        persistPathDir = null;
+        persistMaid = null;
     }
 
     /**

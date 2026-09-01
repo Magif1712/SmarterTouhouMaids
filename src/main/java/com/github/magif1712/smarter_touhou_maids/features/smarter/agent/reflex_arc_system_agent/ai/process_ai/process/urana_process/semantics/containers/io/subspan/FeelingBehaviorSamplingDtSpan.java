@@ -2,14 +2,12 @@ package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_
 
 import com.github.magif1712.smarter_touhou_maids.core.containers.domain.Span;
 
+/**
+ * FeelingBehaviorSamplingDt 区间：输入向量中采样时间间隔 dt 分量的定位。
+ * <p>
+ * 仅是 {@link Span} 的具名子类，不增加任何行为（真善美第4条：语义即类型）。
+ */
 public class FeelingBehaviorSamplingDtSpan extends Span {
-
-    /**
-     * 创建一个记录数组特定区域位置信息的视图。
-     *
-     * @param offset 视图在原始数组中的起始位置
-     * @param length 视图的长度
-     */
     public FeelingBehaviorSamplingDtSpan(int offset, int length) {
         super(offset, length);
     }

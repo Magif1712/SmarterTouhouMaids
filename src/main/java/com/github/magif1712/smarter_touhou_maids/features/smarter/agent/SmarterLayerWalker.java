@@ -1,5 +1,6 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent;
 
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.PersistableProvider;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.Registry;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryEntry;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryIds;
@@ -96,5 +97,75 @@ public final class SmarterLayerWalker {
         if (entry != null) {
             onFactory.accept(registryId, entry.getFactory());
         }
+    }
+
+    // ==================== 持久化支持 ====================
+
+    /**
+     * 推导 maid 当前完整根叶路径 token（如 "smarter__process_ai__urana__standard_bnn"）。
+     * <p>
+     * 沿递归链（agent → ai → process → nn）逐层下钻，收集每层选中 entry 的 id path 分量，
+     * 用 {@code __} 拼接。sensor/effector 叶子层不纳入（持久化数据按 AI 实现路径键控，与感受器/效应器无关）。
+     * <p>
+     * 用 entry id 的 path 分量（如 {@code smarter_touhou_maids:smarter} → {@code smarter}），
+     * 保持目录名简洁可读。跨 mod 同 path 分量碰撞风险可接受（本项目各层 entry 同 mod）。
+     * <p>
+     * <b>用实在的东西转化不实在的概念</b>（真善美第4条）：把"根叶路径"这个不实在的概念，
+     * 实在化为一个可做目录名/配置 key 的字符串 token。
+     *
+     * @param maid 女仆实体（per-maid 模式选择）
+     * @return 路径 token（无选中时返回空串）
+     */
+    public static String pathToken(EntityMaid maid) {
+        StringBuilder sb = new StringBuilder();
+        pathTokenChain(maid, RegistryIds.AGENT, sb);
+        return sb.toString();
+    }
+
+    /**
+     * 递归链 token 拼接：从当前层选中 entry 取 id path 分量拼接，再据 subRegistryId 下钻。
+     */
+    private static void pathTokenChain(EntityMaid maid, ResourceLocation registryId, StringBuilder sb) {
+        Registry<?> registry = RegistryManager.INSTANCE.get(registryId);
+        if (registry == null) {
+            return;
+        }
+        ResourceLocation currentId = SmarterClientState.INSTANCE.getMode(maid, registryId);
+        if (currentId == null) {
+            currentId = registry.getDefaultId();
+        }
+        RegistryEntry<?> entry = registry.get(currentId);
+        if (entry == null) {
+            return;
+        }
+        if (sb.length() > 0) {
+            sb.append("__");
+        }
+        sb.append(entry.getId().getPath());
+        if (entry.getSubRegistryId() != null) {
+            pathTokenChain(maid, entry.getSubRegistryId(), sb);
+        }
+    }
+
+    /**
+     * 路径默认持久化开关 = 路径上任一 factory 实现 {@link PersistableProvider} 且 {@code hasPersistableData()=true}。
+     * <p>
+     * 与 ParamPanelProvider/DebugPanelProvider 的遍历检查同构（第三 Provider 管道）。
+     * 遍历递归链 + 叶子层所有 factory，任一声明 true 即路径默认开。
+     * <p>
+     * <b>声明轨</b>（真善美第2条）：本方法返回路径的默认持久化开关，供 GUI 初值与 shutdown 判断。
+     * 用户可在 GUI 覆盖（存 ParamStore，per-maid）。
+     *
+     * @param maid 女仆实体
+     * @return true = 路径上任一 factory 声明有可持久化数据
+     */
+    public static boolean anyPersistable(EntityMaid maid) {
+        boolean[] result = {false};
+        walk(maid, (registryId, factory) -> {
+            if (factory instanceof PersistableProvider p && p.hasPersistableData()) {
+                result[0] = true;
+            }
+        });
+        return result[0];
     }
 }

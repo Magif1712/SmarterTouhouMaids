@@ -142,9 +142,9 @@ extern "C"
         }
     }
 
-    void VectorSaveBool(Vector<bool> *vec, const char *filename)
+    void VectorSaveBool(Vector<bool> *vec, const std::filesystem::path &filename)
     {
-        if (vec && filename)
+        if (vec)
         {
             try
             {
@@ -158,9 +158,9 @@ extern "C"
         }
     }
 
-    void VectorLoadFromFileBool(Vector<bool> *vec, const char *filename)
+    void VectorLoadFromFileBool(Vector<bool> *vec, const std::filesystem::path &filename)
     {
-        if (vec && filename)
+        if (vec)
         {
             try
             {
@@ -297,9 +297,9 @@ extern "C"
         }
     }
 
-    void VectorSaveInt(Vector<int> *vec, const char *filename)
+    void VectorSaveInt(Vector<int> *vec, const std::filesystem::path &filename)
     {
-        if (vec && filename)
+        if (vec)
         {
             try
             {
@@ -313,9 +313,9 @@ extern "C"
         }
     }
 
-    void VectorLoadFromFileInt(Vector<int> *vec, const char *filename)
+    void VectorLoadFromFileInt(Vector<int> *vec, const std::filesystem::path &filename)
     {
-        if (vec && filename)
+        if (vec)
         {
             try
             {

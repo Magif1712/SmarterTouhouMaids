@@ -1,22 +1,20 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.semantics.containers.io;
 
-import com.github.magif1712.smarter_touhou_maids.core.containers.domain.Domain;
-import com.github.magif1712.smarter_touhou_maids.core.containers.domain.Span;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.nn.NnEncodingProfile;
 
 /**
- * IO 语义域的聚合器。
+ * IO 域：把"输入域 + 输出域"这个不实在的对偶，实在化为一个对象（真善美第4条）。
  * <p>
- * 这个类聚合了 InputVectorSpan 和 OutputVectorSpan，
- * 为上层应用提供了一个统一的、描述IO语义布局的访问入口。
- * 它是一个纯粹的、无状态的描述符集合。
+ * 由 UranaProcessFactory 据 profile 创建，注入 UranaSystem。urana 持域实例而非静态 OUTPUT_DOMAIN，
+ * 使多实例隔离与换 nn 时的布局切换成为可能（真善美第3条）。
  */
-public class IODomain extends Domain<Span> {
+public class IODomain {
     private final InputVectorDomain inputDomain;
     private final OutputVectorDomain outputDomain;
 
-    public IODomain() {
-        this.inputDomain = new InputVectorDomain();
-        this.outputDomain = new OutputVectorDomain();
+    public IODomain(NnEncodingProfile profile) {
+        this.inputDomain = new InputVectorDomain(profile);
+        this.outputDomain = new OutputVectorDomain(profile);
     }
 
     public InputVectorDomain getInputDomain() {
@@ -25,10 +23,5 @@ public class IODomain extends Domain<Span> {
 
     public OutputVectorDomain getOutputDomain() {
         return outputDomain;
-    }
-
-    @Override
-    public boolean contains(Span element) {
-        return inputDomain.contains(element) || outputDomain.contains(element);
     }
 }

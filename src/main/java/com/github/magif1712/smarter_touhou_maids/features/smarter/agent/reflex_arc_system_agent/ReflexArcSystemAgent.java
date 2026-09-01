@@ -7,6 +7,8 @@ import com.github.magif1712.smarter_touhou_maids.core.execution.stream.Stream;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.core.PossessionManager;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.IAgent;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.SmarterClientService;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.SaveSlot;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.param.ParamStore;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.IAiSystem;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.debug.EffectorDebugHook;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.effector.ActionIntent;
@@ -51,9 +53,9 @@ import java.util.List;
  * {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.AgentFactory#create} 创建本类
  * （已注入 ai+sensor+effector），再调 {@link #awaken} 创建共享资源并唤醒三者。
  * <p>
- * <b>dt 调试状态持久化</b>：{@link #dtDebugEnabled} 为 static，跨附身会话保留；
- * {@link #current} 跟踪运行中实例，供 {@link #setDtDebugEnabledStatic} 即时应用到运行中的 AI。
- * 由 AutoTaskConfigScreen 通过静态方法切换——dt 调试是反射弧系统代理的内部模式，不进 {@link IAgent} 接口。
+ * <b>dt 调试状态</b>：per-maid 存 ParamStore（maid NBT，随存档走，网络同步，消除 global state）；
+ * {@link #current} 跟踪运行中实例，供 {@link #applyDtDebug} 即时应用到运行中的 AI。
+ * 由 GUI（经 UranaProcessFactory 声明的 ParamOption）切换——dt 调试是反射弧系统代理的内部模式，不进 {@link IAgent} 接口。
  */
 public class ReflexArcSystemAgent implements IAgent {
 
@@ -100,13 +102,16 @@ public class ReflexArcSystemAgent implements IAgent {
     private int lastMaidId = 0;
 
     /**
-     * dt 调试开关的持久状态（static：跨附身会话保留，agent 实例重建后仍生效）。
-     * 由 AutoTaskConfigScreen 通过静态方法切换；awaken 时应用到新 AI 实例。
+     * dt 调试开关的 per-maid NBT key（存 ParamStore，随 maid 存档走）。
+     * <p>
+     * 状态不再以 static 字段留存（消除 global state，真善美第1条"善"），
+     * 改存 ParamStore（maid NBT，per-maid，网络同步）。本类只持 key + 应用方法：
+     * {@link #isDtDebugEnabled} 读 ParamStore，{@link #applyDtDebug} 写后即时应用到运行中 AI。
      */
-    private static boolean dtDebugEnabled = false;
+    public static final String KEY_DT_DEBUG_ENABLED = "dtDebugEnabled";
 
     /**
-     * 当前 agent 实例引用（static：供静态 setDtDebugEnabled 即时应用到运行中的 AI）。
+     * 当前 agent 实例引用（static：供 {@link #applyDtDebug} 即时应用到运行中的 AI）。
      * awaken 时赋值，shutdown 时清空。
      */
     private static ReflexArcSystemAgent current = null;
@@ -126,7 +131,7 @@ public class ReflexArcSystemAgent implements IAgent {
 
     @Override
     public void awaken() {
-        // 跟踪当前实例：供 setDtDebugEnabledStatic 即时应用到运行中的 AI（无需等重建）。
+        // 跟踪当前实例：供 applyDtDebug 即时应用到运行中的 AI（无需等重建）。
         current = this;
         this.feelingBuffer = new BoolVector(this.ai.feelingSize());
         this.behaviorScratch = new int[this.ai.behaviorSize() / 32];
@@ -144,8 +149,11 @@ public class ReflexArcSystemAgent implements IAgent {
         // 唤醒效应器：初始化肌群/拮抗对/迟滞状态/复用 intent。
         this.effector.awaken();
 
-        // 应用持久化的 dt 调试状态到新 AI 实例（跨附身会话保留的开关值）。
-        this.ai.setDtDebugEnabled(this.dtDebugEnabled);
+        // 应用 per-maid 的 dt 调试状态到新 AI 实例（存 ParamStore，随 maid 存档走）。
+        // maid 从 PossessionManager 取——awaken 在 smarterReady=true（已附身）时调用，
+        // getPossessedMaid 必非空。null 时 isDtDebugEnabled fallback false（默认关）。
+        EntityMaid dtMaid = PossessionManager.INSTANCE.getPossessedMaid();
+        this.ai.setDtDebugEnabled(isDtDebugEnabled(dtMaid));
         // 唤醒意识体：启动内部工作线程持续运转，
         // 注入感觉缓冲区引用供工作线程每轮读取（AI 与 Minecraft tick 解耦）。
         this.ai.awaken(this.feelingBuffer, this.visionEvent, this.behaviorChannel);
@@ -182,7 +190,8 @@ public class ReflexArcSystemAgent implements IAgent {
             // effector.tick 返回复用实例，立即序列化发包，不跨 tick 持有引用。
             ActionIntent intent = effector.tick(behaviorScratch);
             // 效应器调试观察点：在效应器产出 intent 后、发包前输出人话指令。
-            EffectorDebugHook.INSTANCE.log(intent);
+            // per-maid 调试开关存 ParamStore，log 内部读 maid 判断是否启用。
+            EffectorDebugHook.INSTANCE.log(intent, maid);
             NetworkHandler.INSTANCE.sendToServer(new ServerboundActionIntentPacket(maid.getId(), intent));
         } catch (Exception e) {
             LOGGER.error("[ReflexArc] 效应器解码/发包异常", e);
@@ -220,10 +229,29 @@ public class ReflexArcSystemAgent implements IAgent {
         return PossessionManager.INSTANCE.isPossessing();
     }
 
+    /**
+     * 将 agent 核心状态序列化到磁盘（在 {@link #shutdown} 释放显存前调用）。
+     * <p>
+     * <b>时机对称</b>（C3）：load 在 create（组装时），save 在 shutdown 前（显存未释放）。
+     * 本方法只委托 ai save——ai 内部（UranaSystem.save）先停止工作线程保证一致快照，再 D2H + 写文件，
+     * 不释放显存（释放由后续 {@link #shutdown} 负责）。
+     * <p>
+     * sensor/effector 是无状态叶子，无可持久化数据，本方法不碰它们。共享资源
+     * （feelingBuffer/cudaStream/visionEvent/behaviorChannel）由 {@link #shutdown} 释放，本方法不碰。
+     *
+     * @param slot 持久化槽位（指向新版本目录，由 SmarterClientService.shutdown 创建）
+     */
+    @Override
+    public void save(SaveSlot slot) {
+        if (ai != null && slot != null) {
+            ai.save(slot);
+        }
+    }
+
     @Override
     public void shutdown() {
         LOGGER.info("[ReflexArc] 关闭 ReflexArcSystem...");
-        // 先清空 current：防止 setDtDebugEnabledStatic 在关闭过程中再向正在 shutdown 的 AI 下发状态。
+        // 先清空 current：防止 applyDtDebug 在关闭过程中再向正在 shutdown 的 AI 下发状态。
         current = null;
         // 停止 AI 工作线程并释放其内部资源（join 工作线程，最多 1.5s+0.5s）。
         // shutdown 内部已调用 close()，且会先 join 工作线程，确保不再并发访问 feelingBuffer / behaviorChannel / visionEvent。
@@ -269,24 +297,31 @@ public class ReflexArcSystemAgent implements IAgent {
     }
 
     /**
-     * 静态访问器：设置 dt 调试开关（供 AutoTaskConfigScreen 调用）。
+     * 读 per-maid dt 调试开关状态（存 ParamStore maid NBT，随存档走）。
      * <p>
-     * 写入 static {@link #dtDebugEnabled}（跨附身会话持久），并即时应用到运行中的 AI
-     * （若 {@link #current} 非空），无需等代理重建。
+     * 供 awaken 应用初值、GUI（经 UranaProcessFactory 声明的 ParamOption）回显。
+     * maid 为 null 时返回默认 false。
      */
-    public static void setDtDebugEnabledStatic(boolean enabled) {
-        dtDebugEnabled = enabled;
-        if (current != null && current.ai != null) {
-            current.ai.setDtDebugEnabled(enabled);
-        }
+    public static boolean isDtDebugEnabled(EntityMaid maid) {
+        return Boolean.parseBoolean(
+                ParamStore.INSTANCE.getString(maid, KEY_DT_DEBUG_ENABLED, "false"));
     }
 
     /**
-     * 静态访问器：获取 dt 调试开关状态（供 AutoTaskConfigScreen 读取按钮初值）。
-     * 返回 static {@link #dtDebugEnabled}，未附身时也反映持久状态。
+     * 写 per-maid dt 调试开关并即时应用到运行中的 AI。
+     * <p>
+     * 供 GUI（经 UranaProcessFactory 声明的 ParamOption commitText）调用：
+     * 写 ParamStore + 应用到 {@link #current}（若非空），即时生效无需等代理重建。
+     * 状态本身存 ParamStore（per-maid），本方法只负责应用——存与用分离（真善美第4条：
+     * 把"开关状态"实在化为 ParamStore String，把"应用到 AI"实在化为本方法）。
+     * <p>
+     * maid 参数：当前 {@link #current} 是单例（对应当前附身 maid），GUI 改的 maid 即是它，
+     * 故暂不校验匹配；签名保留 maid 备未来多 maid 场景校验。
      */
-    public static boolean isDtDebugEnabledStatic() {
-        return dtDebugEnabled;
+    public static void applyDtDebug(EntityMaid maid, boolean enabled) {
+        if (current != null && current.ai != null) {
+            current.ai.setDtDebugEnabled(enabled);
+        }
     }
 
     /**

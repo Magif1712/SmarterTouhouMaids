@@ -3,7 +3,7 @@ package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_
 /**
  * 效应器工厂：按行为向量尺寸创建一个 {@link IEffector} 实例。
  * <p>
- * <b>叶子工厂</b>（镜像 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.NnFactory}
+ * <b>叶子工厂</b>（镜像 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process_original.nn.NnFactory}
  * 与 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.SensorFactory}）：
  * 效应器是组装链的叶子，不查下层 registry（效应器之下无选择）。
  * <p>

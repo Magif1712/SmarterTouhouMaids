@@ -2,6 +2,7 @@ package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_
 
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.VectorBase;
 import com.github.magif1712.smarter_touhou_maids.core.execution.event.Event;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.SaveSlot;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.IAiSystem;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.IProcessSystem;
 import com.github.magif1712.smarter_touhou_maids.core.execution.MappedGenerationBuffer;
@@ -10,7 +11,7 @@ import com.github.magif1712.smarter_touhou_maids.core.execution.MappedGeneration
  * 流程型 ai 的实现（过程哲学路线：世界是过程的集合体，而非即成事物的集合体）。
  * <p>
  * process 是本体——意识的流变；nn 是 process 借以运算的机制。urana 这个流程系统内部
- * 用一个可替换的神经网络（BNN/CNN/...）做计算，故 nn 住在 urana_process 内部，不与 process 平级。
+ * 用一个可替换的神经网络（BNN/CNN/...）做计算，故 nn 住在 urana_process_original 内部，不与 process 平级。
  * 本类只直接依赖 {@link IProcessSystem}（流程系统抽象），不感知 nn——换 nn 是 urana 内部的事，
  * 换 process 才是本类的事。
  * <p>
@@ -72,8 +73,8 @@ public class ProcessAiSystem implements IAiSystem {
     }
 
     @Override
-    public void save(String folderPath) {
-        process.save(folderPath);
+    public void save(SaveSlot slot) {
+        process.save(slot);
     }
 
     @Override

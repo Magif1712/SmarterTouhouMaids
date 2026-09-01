@@ -1,5 +1,7 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent;
 
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.SaveSlot;
+
 /**
  * smarter 模式的顶层契约：感知→思考→行动的整个外周过程。
  * <p>
@@ -68,6 +70,19 @@ public interface IAgent {
      * + sensor/effector/ai 各自 shutdown，并发一帧零操作要求让 maid 停止。
      */
     void shutdown();
+
+    /**
+     * 将 agent 核心状态序列化到磁盘（在 {@link #shutdown} 释放显存前调用）。
+     * <p>
+     * <b>时机对称</b>（C3）：load 在 create（组装时），save 在 shutdown 前（显存未释放）。
+     * 实现应先停止内部工作线程（保证一致快照，无并发 GPU 读写），再 D2H + 写文件，
+     * 不释放显存（释放由后续 {@link #shutdown} 负责）。
+     * <p>
+     * <b>每层自管持久化</b>（C2）：本方法委托下层 ai 各自 save 自身状态，上层不感知下层格式。
+     *
+     * @param slot 持久化槽位（指向新版本目录，由 {@code SmarterClientService.shutdown} 创建）
+     */
+    void save(SaveSlot slot);
 
     /**
      * agent 是否激活（应真正接管、tick、抑制原版 AI）。

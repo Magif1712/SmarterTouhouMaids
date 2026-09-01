@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cuda_runtime.h>
+#include <filesystem>
 
 // 前向声明，避免包含完整的 Vector 头文件
 template <typename T>
@@ -21,8 +22,8 @@ extern "C"
     void VectorAllocateBoolMapped(Vector<bool> *vec, size_t size);
     // 把 mapped host 内存的前 wordCount 个 word 拷贝到 out（纯 host memcpy，零 CUDA 调用，不 flush WDDM）。
     void VectorReadMappedBool(Vector<bool> *vec, uint32_t *out, size_t wordCount);
-    void VectorSaveBool(Vector<bool> *vec, const char *filename);
-    void VectorLoadFromFileBool(Vector<bool> *vec, const char *filename);
+    void VectorSaveBool(Vector<bool> *vec, const std::filesystem::path &filename);
+    void VectorLoadFromFileBool(Vector<bool> *vec, const std::filesystem::path &filename);
     size_t VectorGetSizeBool(Vector<bool> *vec);
     void VectorSetRegionBool(Vector<bool> *dst, size_t dest_offset_bits, const Vector<bool> *src, cudaStream_t stream);
     void VectorCopyRegionFromBool(Vector<bool> *dst, size_t dest_offset_bits, const Vector<bool> *src, size_t src_offset_bits, size_t num_bits, cudaStream_t stream);
@@ -34,8 +35,8 @@ extern "C"
     void VectorDeleteInt(Vector<int> *vec);
     void VectorCopyFromHostInt(Vector<int> *vec, const int *h_data, size_t count, cudaStream_t stream);
     void VectorCopyToHostInt(Vector<int> *vec, int *h_data, size_t count);
-    void VectorSaveInt(Vector<int> *vec, const char *filename);
-    void VectorLoadFromFileInt(Vector<int> *vec, const char *filename);
+    void VectorSaveInt(Vector<int> *vec, const std::filesystem::path &filename);
+    void VectorLoadFromFileInt(Vector<int> *vec, const std::filesystem::path &filename);
     size_t VectorGetSizeInt(Vector<int> *vec);
     void VectorCopyRegionFromInt(Vector<int>* dst, size_t dst_offset, const Vector<int>* src, size_t src_offset, size_t num_elements, cudaStream_t stream);
     void VectorSetRegionInt(Vector<int>* dst, size_t dest_offset, const Vector<int>* src, cudaStream_t stream);

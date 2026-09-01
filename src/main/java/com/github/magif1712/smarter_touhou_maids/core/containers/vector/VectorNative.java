@@ -123,4 +123,41 @@ public class VectorNative {
      * 用 PCG 哈希随机填充整数向量，元素 ∈ [0, maxVal)（BNN 目标索引 P 初始化）。同步语义同上。
      */
     public static native void _fillRandomInt(long handle, int maxVal, long seed);
+
+    // ====================================================================
+    // Vector<float> 原生方法（C 侧待实现，先声明接口）
+    // 与 Vector<int> 对称：用于 CNN 浮点权重/激活/梯度。运行时调用会
+    // UnsatisfiedLinkError（C 侧未实现），编译通过——这是用户接受的"先写接口 opnative"。
+    // ====================================================================
+    public static native long _createVectorFloat();
+
+    public static native void _allocateFloat(long handle, int size);
+
+    public static native void _deleteVectorFloat(long handle);
+
+    public static native void _copyFromHostFloat(long handle, float[] data, int count, long streamHandle);
+
+    public static native void _copyToHostFloat(long handle, float[] data, int count);
+
+    public static native void _saveFloat(long handle, String filename);
+
+    public static native void _loadFromFileFloat(long handle, String filename);
+
+    public static native int _getSizeFloat(long handle);
+
+    public static native void _copyRegionFromFloat(long dstHandle, long dstOffset, long srcHandle, long srcOffset,
+            long count, long streamHandle);
+
+    public static native void _setRegionFloat(long dstHandle, long destOffset, long srcHandle, long streamHandle);
+
+    public static native void _copyRegionFromHostFloat(long dstHandle, long destOffset, float[] srcHostData, long count,
+            long streamHandle);
+
+    public static native void _multiplyByScalarFloat(long handle, float scalar, long offset, long length,
+            long streamHandle);
+
+    /**
+     * 用 PCG 哈希随机填充浮点向量，元素 ∈ [0, bound)（CNN 权重初始化）。同步语义同 _fillRandomInt。
+     */
+    public static native void _fillRandomFloat(long handle, float bound, long seed);
 }

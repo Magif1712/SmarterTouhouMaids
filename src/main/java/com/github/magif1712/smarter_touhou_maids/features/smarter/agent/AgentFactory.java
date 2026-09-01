@@ -1,5 +1,6 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent;
 
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.SaveSlot;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.nbt.CompoundTag;
 
@@ -19,14 +20,19 @@ import net.minecraft.nbt.CompoundTag;
  * 外周（SmarterClientService）不再硬编码下层参数 key 进 config——换 process 时外周零改动。
  * 与 config 对称：config 透传，各层读自己需要的 key；maid 透传，各层读自己需要的参数。
  * <p>
- * 附属 agent 工厂实现可不查 AiRegistry（如纯规则 agent 不需要 ai），直接 new 自己的 agent。
+ * <b>slot 透传</b>（C3 时机对称）：slot 透传给下层 ai factory 供其 load 持久化数据。本层不直接用 slot
+ * （agent 自身无可持久化状态——sensor/effector 是无状态叶子，ai 是下层），但需向下传递。
+ * 纯规则 agent 的工厂不解读 slot。
+ * <p>
+ * 附属 agent 工厂实现可不查 AiRegistry（如纯规则 agent 不需要 ai/sensor/effector），直接 new 自己的 agent。
  */
 @FunctionalInterface
 public interface AgentFactory {
     /**
      * @param config 配置载体（含各层 mode id），各 factory 各取所需。
      * @param maid   目标女仆（per-maid 状态入口，供下层 factory 经 ParamStore 读自己声明的参数）。
+     * @param slot   持久化槽位（透传给下层 ai factory 供其 load 持久化数据）。
      * @return 创建好的 IAgent 实例（已注入下层 ai，但尚未 awaken——awaken 由 SmarterClientService 调用）。
      */
-    IAgent create(CompoundTag config, EntityMaid maid);
+    IAgent create(CompoundTag config, EntityMaid maid, SaveSlot slot);
 }

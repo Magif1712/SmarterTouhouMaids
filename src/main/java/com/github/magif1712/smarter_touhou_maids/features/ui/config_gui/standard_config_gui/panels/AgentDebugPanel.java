@@ -1,8 +1,8 @@
 package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.panels;
 
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.SmarterLayerWalker;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.debug.DebugOption;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.debug.DebugPanelProvider;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.param.ParamOption;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.IConfigPanel;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.PanelContext;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.layout.ConfigRow;
@@ -31,7 +31,8 @@ import java.util.List;
  * 本类只关心"拿到 factory 后渲染 CycleButton"，不重复遍历算法（真善美第2条：C 中一个模式 D 中也一个）。
  * <p>
  * <b>数据驱动</b>（消除硬编码）：本 Panel 不感知调试项背后的具体实现
- * （VisionDebugHook / static dt / EffectorDebugHook），只消费 DebugOption 列表。
+ * （VisionDebugHook / dtDebug / EffectorDebugHook），只消费 ParamOption 列表（controlHint="toggle"）。
+ * 调试项 per-maid 存 ParamStore（随 maid 存档走），与参数项同构（复用同一套 ParamOption 声明机制）。
  * 换某层 factory 时——
  * <ul>
  *   <li>新 factory 实现 DebugPanelProvider：本 Panel 自动显示其调试项，GUI 零改动。</li>
@@ -53,27 +54,29 @@ public class AgentDebugPanel implements IConfigPanel {
         }
         // 共享遍历器：对每层选中 factory 调回调，factory 不实现 DebugPanelProvider 时跳过
         SmarterLayerWalker.walk(maid, (registryId, factory) ->
-                addDebugOptionsFromFactory(factory, stack));
+                addDebugOptionsFromFactory(maid, factory, stack));
     }
 
     /**
-     * 从 factory 提取调试项并渲染 CycleButton。
+     * 从 factory 提取调试项（controlHint="toggle" 的 ParamOption）并渲染 CycleButton。
      * factory 不实现 DebugPanelProvider 时跳过（该层无调试项）。
+     * <p>
+     * 纯 text 透传（与 RuntimeParamsPanel.addToggleParam 同构）：boolean 编码为 "true"/"false" String，
+     * {@link ParamOption#commitText} 写 ParamStore，{@link ParamOption#currentText} 回显。
+     * 调试项 controlHint 固定 "toggle"（DebugPanelProvider 契约），故一律 CycleButton，不分支派。
      */
-    private void addDebugOptionsFromFactory(Object factory, VerticalStack stack) {
+    private void addDebugOptionsFromFactory(EntityMaid maid, Object factory, VerticalStack stack) {
         if (!(factory instanceof DebugPanelProvider)) {
             return;
         }
-        List<DebugOption> options = ((DebugPanelProvider) factory).getDebugOptions();
-        for (DebugOption opt : options) {
+        List<ParamOption> options = ((DebugPanelProvider) factory).getDebugOptions();
+        for (ParamOption opt : options) {
             ConfigRow row = stack.addRow();
-            CycleButton<Boolean> btn = CycleButton.onOffBuilder(opt.get())
-                    .create(row.x(), row.y(), 200, 20,
-                            opt.label(),
-                            (b, v) -> opt.set(v));
-            if (opt.tooltip() != null) {
-                btn.setTooltip(Tooltip.create(opt.tooltip()));
-            }
+            boolean current = Boolean.parseBoolean(opt.currentText(maid));
+            CycleButton<Boolean> btn = CycleButton.onOffBuilder(current)
+                    .create(row.x(), row.y(), 200, 20, opt.label(),
+                            (b, v) -> opt.commitText(maid, String.valueOf(v)));
+            btn.setTooltip(Tooltip.create(opt.tooltip()));
             row.addWidget(btn);
         }
     }

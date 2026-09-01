@@ -5,6 +5,7 @@ import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.AgentFac
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.IAgent;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.param.ParamOption;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.param.ParamPanelProvider;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.SaveSlot;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.AiFactory;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.IAiSystem;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.effector.EffectorFactory;
@@ -43,13 +44,13 @@ import java.util.List;
 public class ReflexArcSystemAgentFactory implements AgentFactory, ParamPanelProvider {
 
     @Override
-    public IAgent create(CompoundTag config, EntityMaid maid) {
+    public IAgent create(CompoundTag config, EntityMaid maid, SaveSlot slot) {
         // === 查 AiRegistry 取下层 ai factory（自驱组装 process/nn）===
         Registry<?> aiRegistry = RegistryManager.INSTANCE.get(RegistryIds.AI);
         RegistryEntry<?> aiEntry = aiRegistry.resolve(config.getString(RegistryIds.AI.toString()));
         AiFactory aiFactory = (AiFactory) aiEntry.getFactory();
-        // 下层 ai factory 自驱组装其内部 process/nn（config + maid 透传，各层各取所需）
-        IAiSystem ai = aiFactory.create(config, maid);
+        // 下层 ai factory 自驱组装其内部 process/nn（config + maid + slot 透传，各层各取所需）
+        IAiSystem ai = aiFactory.create(config, maid, slot);
 
         // === 查 SensorRegistry 取下层 sensor factory（叶子，无递归）===
         Registry<?> sensorRegistry = RegistryManager.INSTANCE.get(RegistryIds.SENSOR);
