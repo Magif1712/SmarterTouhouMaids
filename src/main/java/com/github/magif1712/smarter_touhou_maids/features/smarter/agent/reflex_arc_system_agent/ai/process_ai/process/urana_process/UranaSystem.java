@@ -3,12 +3,15 @@ package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_
 import com.github.magif1712.smarter_touhou_maids.core.containers.domain.Span;
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.VectorBase;
 import com.github.magif1712.smarter_touhou_maids.core.execution.MappedGenerationBuffer;
+import com.github.magif1712.smarter_touhou_maids.core.execution.RefreshRequest;
 import com.github.magif1712.smarter_touhou_maids.core.execution.event.Event;
 import com.github.magif1712.smarter_touhou_maids.core.execution.stream.Stream;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.SaveSlot;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.IProcessSystem;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.common.AncSlider;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.FittableMapper;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.VisionEncoder;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.semantics.containers.io.subspan.BehaviorSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +26,7 @@ import java.util.function.Supplier;
  * 算法状态在 {@link UranaState}，由本类持有并注入——环境保管状态，过程只算。
  * <p>
  * 快环 dt 用慢环最新测量的 slowDtMillis（伪代码设计：快环不自测 dt，复用慢环的 dt）。
+ * 调试日志另测快环真实墙钟间隔（fastDtMillis），与 slowDtMillis 并列输出，便于诊断节律。
  * <p>
  * <b>依赖接口</b>（真善美第2条）：mapper 字段为 {@link FittableMapper} 接口类型——
  * 运行环境壳只经接口使用映射器（save/loadVector/getInputDomain/getOutputDomain/close），
@@ -42,6 +46,8 @@ public class UranaSystem implements IProcessSystem {
     private final UranaState state;
 
     private volatile Event visionEvent;
+    /** 感觉刷新请求（由 agent 经 setRefreshRequest 注入，非 Urana 所有）。快环每拍开头 request，感受器 consume 后才编码。 */
+    private volatile RefreshRequest feelingRefresh;
     private boolean dtDebugEnabled = false;
 
     private volatile boolean running = false;
@@ -162,9 +168,10 @@ public class UranaSystem implements IProcessSystem {
         loadVector(s.prospectiveInheritance, uranaPath, "prospective_inheritance.bin", false);
         loadVector(s.retrospectiveInheritance, uranaPath, "retrospective_inheritance.bin", false);
         loadVector(s.introspectiveInheritance, uranaPath, "introspective_inheritance.bin", false);
-        loadVector(s.prospectiveTC, uranaPath, "prospective_tC.bin", true);
-        loadVector(s.retrospectiveTC, uranaPath, "retrospective_tC.bin", true);
-        loadVector(s.introspectiveTC, uranaPath, "introspective_tC.bin", true);
+        // tC 用前向载体（createVector），故 load 用 loadVector 而非 loadGradientVector
+        loadVector(s.prospectiveTC, uranaPath, "prospective_tC.bin", false);
+        loadVector(s.retrospectiveTC, uranaPath, "retrospective_tC.bin", false);
+        loadVector(s.introspectiveTC, uranaPath, "introspective_tC.bin", false);
     }
 
     private void loadVector(VectorBase target, String uranaPath, String fileName, boolean isGradient) {
@@ -196,6 +203,11 @@ public class UranaSystem implements IProcessSystem {
     }
 
     @Override
+    public void setRefreshRequest(RefreshRequest feelingRefresh) {
+        this.feelingRefresh = feelingRefresh;
+    }
+
+    @Override
     public void shutdown(/* <- */) {
         if (running) {
             stopWorkersForSave(/* <- */);
@@ -224,16 +236,38 @@ public class UranaSystem implements IProcessSystem {
     }
 
     private void runFastLoop() {
+        long lastFastRunNanos = 0;
         while (running && !Thread.currentThread().isInterrupted()) {
             long now = System.nanoTime();
+            // 调试日志测快环真实墙钟间隔（fastDtMillis），与喂给 NN 的 slowDtMillis 并列输出，便于诊断节律。
+            long fastDtMillis = (lastFastRunNanos == 0) ? 0 : (now - lastFastRunNanos) / 1_000_000L;
+            lastFastRunNanos = now;
             if (dtDebugEnabled) {
-                LOGGER.info("[UranaFast] dt={} ms", slowDtMillis);
+                LOGGER.info("[UranaFast] dt={} ms (slowDt={} ms)", fastDtMillis, slowDtMillis);
             }
+            // 节律控制：等视觉采集完成（UranaFunction 不含此——纯算法不碰 stream 同步）
+            if (visionEvent != null) {
+                fastStream.waitEvent(/* <- */ visionEvent);
+            }
+            // 拉模型：每拍开头请求新感觉（host 原子写，~ns），感受器下一帧 consume 后才编码。
+            if (feelingRefresh != null) {
+                feelingRefresh.request();
+            }
+            long stream = fastStream.getHandle();
             try {
-                UranaFunction.fastTick(mapper, state, currentFeeling, slowDtMillis, visionEvent, fastStream /* -> */, behaviorChannel, state);
+                // 纯算法（不含节律控制/外周输出/三缓冲 record）
+                UranaFunction.fastTick(mapper, state, currentFeeling, slowDtMillis, fastStream /* -> */, state);
             } catch (Exception e) {
                 LOGGER.error("[Urana][Fast] runFastTick error", e);
             }
+            // 外周输出：行为 → 外周通道（UranaFunction 不含此——纯算法不碰外周边界）
+            behaviorChannel.getBuffer().copyRegionFrom(/* <- */ state.fastY, state.outputDomain.getBehaviorSpan(), new BehaviorSpan(0, state.behaviorLen), stream);
+            behaviorChannel.publish(/* <- */ stream);
+            // 三缓冲 record（照搬原初代理）：record traceEvent[traceGen%3]，traceGen++。
+            // 慢环 waitEvent 等的是特定槽位——只有快环 record 到该槽位时才通过，防止 GPU 独占。
+            int tIdx = state.traceGen % 3;
+            state.traceEvent[tIdx].record(/* <- */ stream);
+            state.traceGen++;
             throttle(fastMinDtMillis, now);
         }
     }
@@ -241,6 +275,21 @@ public class UranaSystem implements IProcessSystem {
     private void runSlowLoop() {
         long lastRunStartNanos = 0;
         while (running && !Thread.currentThread().isInterrupted()) {
+            // CPU 守卫（照搬原初代理）：快环尚未产出痕迹时跳过本轮，
+            // 不提交任何 CUDA 命令——GPU 完全空闲给 OpenGL 渲染。
+            int latestGen = state.traceGen - 1;
+            if (latestGen < 0) {
+                Thread.yield();
+                continue;
+            }
+            // 三缓冲 waitEvent：等快环 record 到特定槽位 traceEvent[tIdx]。
+            // CUDA stream waitEvent 是 GPU 等待非 CPU 等待——CPU 不阻塞，但
+            // GPU 在 uranaStream 上等特定 event 被 record，不会疯狂执行 GradCellOp。
+            // 三缓冲让每轮 waitEvent 等的是不同的 event（tIdx 随 latestGen 递增），
+            // 防止单 event "已被 record → 后续 waitEvent 立即通过"的 GPU 独占问题。
+            int tIdx = ((latestGen % 3) + 3) % 3;
+            uranaStream.waitEvent(/* <- */ state.traceEvent[tIdx]);
+
             long now = System.nanoTime();
             long dtMillis = (lastRunStartNanos == 0) ? 0 : (now - lastRunStartNanos) / 1_000_000L;
             lastRunStartNanos = now;
@@ -290,6 +339,28 @@ public class UranaSystem implements IProcessSystem {
         return mapper.getOutputDomain().getBehaviorSpan().getLength();
     }
 
+    // ---- 感觉载体契约：urana 只透传给 mapper，载体类型知识留在 nn 家族 ----
+
+    @Override
+    public VectorBase newFeelingBuffer() {
+        return mapper.newFeelingBuffer();
+    }
+
+    @Override
+    public VisionEncoder newVisionEncoder() {
+        return mapper.newVisionEncoder();
+    }
+
+    @Override
+    public VectorBase newBehaviorBuffer() {
+        return mapper.newBehaviorBuffer();
+    }
+
+    @Override
+    public void readBehaviorTo(VectorBase behaviorBuffer, int[] dst, long stream) {
+        mapper.readBehaviorTo(behaviorBuffer, dst, stream);
+    }
+
     private Span fullSpan(VectorBase v) {
         return new Span(0, v.size()) {};
     }
@@ -319,8 +390,8 @@ public class UranaSystem implements IProcessSystem {
         }
         if (s.slowBufX != null) s.slowBufX.close();
         if (s.buf_t != null) s.buf_t.close();
-        if (s.pushEvent != null) {
-            try { s.pushEvent.close(); } catch (Exception ignored) {}
+        for (Event e : s.traceEvent) {
+            if (e != null) { try { e.close(); } catch (Exception ignored) {} }
         }
 
         if (mapper != null) mapper.close();

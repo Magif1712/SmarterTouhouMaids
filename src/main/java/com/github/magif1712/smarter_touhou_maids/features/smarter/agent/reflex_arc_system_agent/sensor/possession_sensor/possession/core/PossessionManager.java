@@ -1,7 +1,9 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.core;
 
 import com.github.magif1712.smarter_touhou_maids.SmarterTouhouMaids;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ReflexArcSystemAgentFactory;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.config.PossessionConfig;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.state.MaidSmarterState;
 import com.github.magif1712.smarter_touhou_maids.network.NetworkHandler;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.network.ServerboundPossessionRequestPacket;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.network.ServerboundSetPossessionEnabledPacket;
@@ -34,6 +36,13 @@ public class PossessionManager {
     public static final PossessionManager INSTANCE = new PossessionManager();
     private static final Logger LOGGER = LogUtils.getLogger();
 
+    /**
+     * 本分支的 agent entry id（见 {@link ReflexArcSystemAgentFactory#AGENT_ID}）。
+     * possession 是 agent 分支的私有模式，多分支共存时以此守卫：只有 maid 选中的
+     * agent == 本分支时，本副本才处理附身状态（D4 形态修正，附属模组添加新代理同理零冲突）。
+     */
+    private static final ResourceLocation BRANCH_AGENT_ID = ReflexArcSystemAgentFactory.AGENT_ID;
+
     private boolean isPossessing = false;
     @Nullable
     private UUID possessedMaidUUID = null;
@@ -53,6 +62,9 @@ public class PossessionManager {
     // Public API
     public void requestPossession(EntityMaid maid) {
         if (maid == null) return;
+        // 分支守卫（D4）：目标 maid 的 agent != 本分支时静默忽略——双分支按键同时触发时，
+        // 只有持有该 maid 的分支发出请求，其余副本零发包。
+        if (!isBranchAgent(maid)) return;
         NetworkHandler.INSTANCE.sendToServer(new ServerboundPossessionRequestPacket(maid.getUUID(), true));
     }
 
@@ -103,6 +115,14 @@ public class PossessionManager {
     @SubscribeEvent
     public void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
+
+        // 守卫（多代理共存，D4 形态修正）：附身 maid 的 agent 类型 != 本代理时跳过——
+        // possession 是各代理分支的私有模式副本，同一时刻玩家只附身一个 maid，
+        // 只有持有该 maid 的分支处理附身状态，其余副本零执行。
+        EntityMaid guardMaid = getPossessedMaid();
+        if (guardMaid != null && !isBranchAgent(guardMaid)) {
+            return;
+        }
 
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer currentPlayer = mc.player;
@@ -159,6 +179,14 @@ public class PossessionManager {
         if (mc.player != null && mc.getCameraEntity() != null && mc.getCameraEntity() != mc.player) {
             mc.setCameraEntity(mc.player);
         }
+    }
+
+    /**
+     * maid 选中的 agent 是否属于本分支（possession 守卫）。
+     * 解析（含旧存档回退 registry defaultId）由 {@link MaidSmarterState#getAgentId} 统一提供。
+     */
+    private boolean isBranchAgent(EntityMaid maid) {
+        return BRANCH_AGENT_ID.equals(MaidSmarterState.getAgentId(maid));
     }
 
     private void tryStartPossession() {

@@ -48,22 +48,39 @@ public class ProcessAiRegistration {
     public static void onCommonSetup(FMLCommonSetupEvent event) {
         String modId = SmarterTouhouMaids.MOD_ID;
 
-        // === 创建 AiRegistry（id=AI，由 agent 层定义；AI 层引用父层定义）===
+        // === 原初代理的 AiRegistry（id=AI）+ ProcessRegistry（id=PROCESS）===
+        // AI registry 含 process_ai entry（subRegistryId=PROCESS）。
+        // PROCESS 此时为空——urana_original 由原初分支的 UranaProcessRegistration（LOWEST）追加。
         ResourceLocation aiDefault = new ResourceLocation(modId, "process_ai");
         Registry<AiFactory> aiRegistry = new Registry<>(RegistryIds.AI, aiDefault);
         aiRegistry.register(new RegistryEntry<>(
                 aiDefault,
                 "mode." + modId + ".ai.process_ai",
-                new ProcessAiFactory(),
-                ProcessAiRegistryIds.PROCESS)); // 选了流程型 ai 后还要选 process
+                new ProcessAiFactory(ProcessAiRegistryIds.PROCESS),
+                ProcessAiRegistryIds.PROCESS));
         RegistryManager.INSTANCE.register(aiRegistry);
 
-        // === 创建 ProcessRegistry（id=PROCESS，由 AI 层定义）===
-        // urana（核心默认 process）自包含注册：id/名/factory 由 UranaProcessModes 声明。
-        // subRegistryId=MAPPER（由 process 层定义）封装在 UranaProcessModes.processEntry 内。
-        ResourceLocation processDefault = new ResourceLocation(modId, UranaProcessModes.PROCESS_ID);
-        Registry<ProcessFactory> processRegistry = new Registry<>(ProcessAiRegistryIds.PROCESS, processDefault);
-        processRegistry.register(UranaProcessModes.processEntry(modId));
+        Registry<ProcessFactory> processRegistry = new Registry<>(
+                ProcessAiRegistryIds.PROCESS,
+                new ResourceLocation(modId, "urana_original")); // 默认指向 urana_original（原初分支追加后存在）
         RegistryManager.INSTANCE.register(processRegistry);
+
+        // === 新版代理的 AiRegistry（id=AI_SMARTER）+ ProcessRegistry（id=PROCESS_SMARTER）===
+        // 与原初代理隔离：只含 urana（新版流程），urana_original 不可选——避免不兼容组合
+        // （urana_original 的 sensor/feeling 载体与新版代理的采集/解码链不兼容）。
+        Registry<AiFactory> aiSmarterRegistry = new Registry<>(RegistryIds.AI_SMARTER, aiDefault);
+        aiSmarterRegistry.register(new RegistryEntry<>(
+                aiDefault,
+                "mode." + modId + ".ai.process_ai",
+                new ProcessAiFactory(ProcessAiRegistryIds.PROCESS_SMARTER),
+                ProcessAiRegistryIds.PROCESS_SMARTER));
+        RegistryManager.INSTANCE.register(aiSmarterRegistry);
+
+        // urana（核心默认 process）注册到 PROCESS_SMARTER（新版代理专用）。
+        ResourceLocation processSmarterDefault = new ResourceLocation(modId, UranaProcessModes.PROCESS_ID);
+        Registry<ProcessFactory> processSmarterRegistry = new Registry<>(
+                ProcessAiRegistryIds.PROCESS_SMARTER, processSmarterDefault);
+        processSmarterRegistry.register(UranaProcessModes.processEntry(modId));
+        RegistryManager.INSTANCE.register(processSmarterRegistry);
     }
 }

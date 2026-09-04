@@ -37,6 +37,51 @@ public final class FloatVector extends VectorBase {
         setHandleAndSize(newHandle, size);
     }
 
+    /**
+     * 分配为 host mapped pinned memory（zero-copy）。
+     * <p>
+     * GPU 经 device 视图写等价于写 host 内存，host 经 {@link #readMappedToJava} 直接读。
+     * 用于 CNN behavior 容器：主线程零 CUDA 调用读取，不 flush WDDM 命令缓冲。
+     */
+    public void allocateMapped(int size) {
+        validateSize(size);
+        long newHandle = VectorNative._createVectorFloat();
+        VectorNative._allocateFloatMapped(newHandle, size);
+        setHandleAndSize(newHandle, size);
+    }
+
+    /**
+     * 静态工厂：创建一个 mapped FloatVector。
+     */
+    public static FloatVector mapped(int size) {
+        FloatVector v = new FloatVector();
+        v.allocateMapped(size);
+        return v;
+    }
+
+    /**
+     * 从 mapped host 内存读取浮点数据到 float[]（纯 host memcpy，零 CUDA 调用）。
+     * <p>
+     * 调用方应先检查 generation（{@code MappedCounter.getHostValue()}）判断 GPU 已写完，
+     * 再调此方法读完整 buffer，避免撕裂。
+     *
+     * @param dstData 输出数组。
+     * @param count   读取的元素数。
+     */
+    public void readMappedToJava(float[] dstData, int count) {
+        Objects.requireNonNull(dstData);
+        validateCount(count, dstData.length);
+        validateCount(count, size());
+        VectorNative._readMappedFloat(requireHandle(), dstData, count);
+    }
+
+    /**
+     * 从 mapped host 内存读取全部数据到 float[]。
+     */
+    public void readMappedToJava(float[] dstData) {
+        readMappedToJava(dstData, dstData.length);
+    }
+
     public void copyFromHost(float[] data, int count, long streamHandle) {
         validateCount(count, data.length);
         validateCount(count, size());

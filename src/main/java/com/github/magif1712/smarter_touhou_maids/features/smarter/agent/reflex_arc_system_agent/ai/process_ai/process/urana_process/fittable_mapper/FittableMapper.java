@@ -37,6 +37,15 @@ public interface FittableMapper extends AutoCloseable {
 
     void zeroGradient(long stream /* -> */, VectorBase gradVec);
 
+    /**
+     * 清零向量（非梯度载体，如继承信息 inheritance）。
+     * <p>
+     * 与 {@link #zeroGradient} 对称——zeroGradient 清零梯度向量（IntVector/FloatVector），
+     * zeroVector 清零普通向量（BoolVector/FloatVector）。载体类型由所持 nn 家族决定，
+     * mapper 委托 {@code nn.zeroVector}，不感知具体载体（真善美第2/3条）。
+     */
+    void zeroVector(long stream /* -> */, VectorBase vec);
+
     // ---- Java adaptation（伪代码无此方法，对应 y.C/y.F 的 Java 实在化，见实现类注释）----
 
     /**
@@ -90,4 +99,44 @@ public interface FittableMapper extends AutoCloseable {
      * {@code Ext(S'.Y) ⊄ Ext(T.Y)}（强转 ClassCastException）。装饰器层应转发到被装饰的 mapper。
      */
     Object getHyperparameters();
+
+    // ---- 感觉载体契约（nn 家族契约经 mapper 上浮；装饰器层应转发到被装饰的 mapper）----
+
+    /**
+     * 创建感觉缓冲区（可选能力，default 委托链的 mapper 段）。
+     * <p>
+     * 长度取自本 mapper 的 inputDomain feeling span，载体类型由所持 nn 家族决定
+     * （{@code nn.newFeelingBuffer(length)}）——mapper 不感知载体，只透传。
+     * 上层（urana → process → ai）经本方法取得缓冲，agent 据此创建共享 feelingBuffer。
+     * 未实现的 mapper 走默认（抛异常）——组装非法组合时 fail-fast。
+     */
+    default VectorBase newFeelingBuffer() {
+        throw new UnsupportedOperationException("此映射器未发布感觉载体契约（newFeelingBuffer）");
+    }
+
+    /**
+     * 创建视觉解码器（可选能力，default 委托链的 mapper 段）。
+     * <p>
+     * 解码器由所持 nn 家族提供（{@code nn.newVisionEncoder()}，与载体配对），
+     * mapper 只透传。上层经本方法取得解码器，agent 注入感受器。
+     */
+    default VisionEncoder newVisionEncoder() {
+        throw new UnsupportedOperationException("此映射器未发布视觉解码器（newVisionEncoder）");
+    }
+
+    /**
+     * 创建行为缓冲区（可选能力，default 委托链的 mapper 段）。
+     * 长度取自本 mapper 的 outputDomain behavior span，载体类型由所持 nn 家族决定。
+     */
+    default VectorBase newBehaviorBuffer() {
+        throw new UnsupportedOperationException("此映射器未发布行为载体契约（newBehaviorBuffer）");
+    }
+
+    /**
+     * 行为读取（可选能力，default 委托链的 mapper 段）。
+     * 把行为缓冲区载体数据读出为 int[]（effector 期望的 bit-packed 格式）。
+     */
+    default void readBehaviorTo(VectorBase behaviorBuffer, int[] dst, long stream) {
+        throw new UnsupportedOperationException("此映射器未发布行为读取契约（readBehaviorTo）");
+    }
 }

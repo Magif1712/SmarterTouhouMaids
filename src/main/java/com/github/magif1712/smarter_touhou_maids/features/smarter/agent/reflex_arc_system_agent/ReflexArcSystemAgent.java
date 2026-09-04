@@ -1,7 +1,8 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent;
 
-import com.github.magif1712.smarter_touhou_maids.core.containers.vector.BoolVector;
+import com.github.magif1712.smarter_touhou_maids.core.containers.vector.VectorBase;
 import com.github.magif1712.smarter_touhou_maids.core.diagnostics.MemoryDiagnostics;
+import com.github.magif1712.smarter_touhou_maids.core.execution.RefreshRequest;
 import com.github.magif1712.smarter_touhou_maids.core.execution.event.Event;
 import com.github.magif1712.smarter_touhou_maids.core.execution.stream.Stream;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.core.PossessionManager;
@@ -65,7 +66,12 @@ public class ReflexArcSystemAgent implements IAgent {
     private final ISensor sensor;
     private final IEffector effector;
 
-    private BoolVector feelingBuffer;
+    /**
+     * 感觉缓冲区（共享资源，agent 拥有）。载体类型（BoolVector/FloatVector）由 ai 链的
+     * nn 家族定义（BNN→位平面，CNN→RGB float），经 {@code ai.newFeelingBuffer()} 取得——
+     * agent 不感知具体载体（无类型开关），向下转型知识留在解码器内部。
+     */
+    private VectorBase feelingBuffer;
     private Stream cudaStream;
     /**
      * 视觉采集完成事件（共享资源，agent 拥有）。
@@ -74,6 +80,14 @@ public class ReflexArcSystemAgent implements IAgent {
      * AI 在每轮开头 waitEvent，确保读到完整视觉数据。
      */
     private Event visionEvent;
+
+    /**
+     * 感觉刷新请求（共享资源，agent 拥有，纯 host 对象无 close）。
+     * <p>
+     * 拉模型握手：AI 每轮开头 request，感受器在渲染线程每帧 consume——
+     * 有请求才编码，保证"编码次数 ≤ 消费次数"。构造即置位：首轮无条件编码一次。
+     */
+    private RefreshRequest feelingRefresh;
 
     /**
      * 行为产出通道（意识-外周边界对象）。
@@ -133,19 +147,31 @@ public class ReflexArcSystemAgent implements IAgent {
     public void awaken() {
         // 跟踪当前实例：供 applyDtDebug 即时应用到运行中的 AI（无需等重建）。
         current = this;
-        this.feelingBuffer = new BoolVector(this.ai.feelingSize());
+        // 感觉缓冲区：载体契约来自 ai 链（nn 家族定义载体：CNN→FloatVector，BNN→BoolVector）。
+        // agent 不感知具体载体类型（无类型开关），载体类型知识留在 nn 家族与解码器内部。
+        this.feelingBuffer = this.ai.newFeelingBuffer();
         this.behaviorScratch = new int[this.ai.behaviorSize() / 32];
         this.cudaStream = new Stream();
         // 视觉采集完成事件：感受器写完 feelingBuffer 后在 cudaStream 上 record，
         // AI 每轮开头 waitEvent 跨流等待，替代旧的 NULL 流隐式屏障。
         this.visionEvent = new Event();
+        // 感觉刷新请求（拉模型握手）：AI 每轮 request，感受器 consume 后才编码。
+        this.feelingRefresh = new RefreshRequest();
 
-        // 行为产出通道：由外周创建，持有 mapped buffer + generation 计数器。
-        // 注入 AI 系统供其 producer 面使用，本类用其 consumer 面零 CUDA 调用消费。
-        this.behaviorChannel = new MappedGenerationBuffer(this.ai.behaviorSize());
+        // 行为产出通道：buffer 载体由 ai 链的 nn 家族决定（CNN→FloatVector，BNN→BoolVector），
+        // 经 ai.newBehaviorBuffer() 取得——agent 不感知具体载体（无类型开关）。
+        // generation 计数器始终 mapped（零拷贝读取），同步语义不变。
+        this.behaviorChannel = new MappedGenerationBuffer(this.ai.newBehaviorBuffer());
 
         // 唤醒感受器：注入共享资源（feelingBuffer/cudaStream/visionEvent），sensor 自建快照纹理。
         this.sensor.awaken(this.feelingBuffer, this.cudaStream, this.visionEvent);
+        // 注入感觉刷新请求（拉模型握手）：AI 每轮 request，感受器 consume 后才解码。
+        // 走 ISensor 可选能力（default 方法），不支持拉模型的感受器（原初分支）自动忽略。
+        this.sensor.setRefreshRequest(this.feelingRefresh);
+        // 注入视觉解码器：由 ai 链的 nn 家族贡献（定义感觉载体者同时提供解码器，天然配对），
+        // 感受器采集快照后按需调用。注入序：awaken → setRefreshRequest → setVisionEncoder
+        // （感受器在 setVisionEncoder 做装配期校验：解码器↔缓冲尺寸契约 + 拉模型握手就位）。
+        this.sensor.setVisionEncoder(this.ai.newVisionEncoder());
         // 唤醒效应器：初始化肌群/拮抗对/迟滞状态/复用 intent。
         this.effector.awaken();
 
@@ -157,11 +183,13 @@ public class ReflexArcSystemAgent implements IAgent {
         // 唤醒意识体：启动内部工作线程持续运转，
         // 注入感觉缓冲区引用供工作线程每轮读取（AI 与 Minecraft tick 解耦）。
         this.ai.awaken(this.feelingBuffer, this.visionEvent, this.behaviorChannel);
+        // 注入感觉刷新请求：AI 快环每轮开头 request（拉模型），经 IAiSystem 可选能力转发。
+        this.ai.setRefreshRequest(this.feelingRefresh);
 
         // 复位 generation 消费游标，确保二次附身时首轮必读。
         this.lastGen = -1;
 
-        LOGGER.info("[ReflexArc] 初始化完成 (feeling={} bits, behavior={} bits)",
+        LOGGER.info("[ReflexArc] 初始化完成 (feeling={} 载体单位, behavior={} bits)",
                 this.ai.feelingSize(), this.ai.behaviorSize());
         logGpuMemory("init完成");
     }
@@ -179,12 +207,13 @@ public class ReflexArcSystemAgent implements IAgent {
         lastMaidId = maid.getId();
         try {
             // 读 generation（纯 host 内存读，零 CUDA 调用，不 flush WDDM 命令缓冲）。
-            // generation 变化 = AI 已产出新 behavior 且 GPU 已写完 mapped buffer（流内有序保证）。
+            // generation 变化 = AI 已产出新 behavior 且 GPU 已写完 buffer（流内有序保证）。
             int gen = behaviorChannel.getGeneration();
             if (gen != lastGen) {
                 lastGen = gen;
-                // 从 mapped host 内存读完整 behavior 到 scratch（纯 host memcpy，零 CUDA 调用）。
-                behaviorChannel.readTo(behaviorScratch);
+                // 行为读取：载体类型由 ai 链决定（BoolVector mapped 零拷贝 / FloatVector sync D2H），
+                // ai.readBehaviorTo 把载体数据转为 effector 期望的 bit-packed int[]（无类型开关）。
+                ai.readBehaviorTo(behaviorChannel.getBuffer(), behaviorScratch, 0L);
             }
             // fresh=false（gen 未变）时 behaviorScratch 保持上次值，效应器继续低通滤波（肌肉保持张力）。
             // effector.tick 返回复用实例，立即序列化发包，不跨 tick 持有引用。
@@ -342,9 +371,10 @@ public class ReflexArcSystemAgent implements IAgent {
 
     /**
      * debug 专用：暴露感觉缓冲区供 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.debug.VisionDebugHook} dump。
+     * 载体类型由 ai 链的 nn 家族决定（BoolVector/FloatVector），debug hook 按载体分派 dump 逻辑。
      * 不进 {@link IAgent} 接口——附属 agent 若有不同的感受器系统，应有自己的 debug hook。
      */
-    public BoolVector getFeelingBuffer() {
+    public VectorBase getFeelingBuffer() {
         return feelingBuffer;
     }
 }

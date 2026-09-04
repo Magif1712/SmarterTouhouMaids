@@ -1,7 +1,6 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process;
 
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.SaveSlot;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process_original.nn.INeuralNetwork;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.nbt.CompoundTag;
 

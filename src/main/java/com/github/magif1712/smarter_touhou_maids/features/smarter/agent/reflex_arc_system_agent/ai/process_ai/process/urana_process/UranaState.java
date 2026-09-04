@@ -1,6 +1,5 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process;
 
-import com.github.magif1712.smarter_touhou_maids.core.containers.vector.FloatVector;
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.VectorBase;
 import com.github.magif1712.smarter_touhou_maids.core.execution.event.Event;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.common.AncSlider;
@@ -55,7 +54,16 @@ public class UranaState {
     public final VectorBase buf_t;
 
     // 快→慢的流程边：快环 record，慢环 tick 前等待（天然解决首拍问题）
-    public final Event pushEvent;
+    // 三缓冲（照搬原初代理模式）：快环每轮 record traceEvent[traceGen%3]，traceGen++；
+    // 慢环取 latestGen=traceGen-1，waitEvent(traceEvent[latestGen%3])。
+    // 单 event 的致命缺陷：CUDA event 被 record 过后，后续 waitEvent 立即通过——
+    // 慢环 while 循环 CPU 不阻塞（CUDA stream waitEvent 是 GPU 等待非 CPU 等待），
+    // 疯狂提交 GradCellOp 命令，GPU 被 8fw+8bw 梯度计算独占，OpenGL 渲染被饿死。
+    // 三缓冲让慢环每轮 waitEvent 等的是特定的 traceEvent[tIdx]——只有快环 record
+    // 到该槽位时才通过，形成"慢环→等快环→快环等视觉→视觉等渲染"的链条，
+    // GPU 在梯度计算与渲染之间交替，不独占。
+    public final Event[] traceEvent;
+    public volatile int traceGen = 0;
 
     public UranaState(FittableMapper mapper) {
         this.mapper = mapper;
@@ -73,20 +81,27 @@ public class UranaState {
         this.introspectiveAncSlider = new AncSlider(mapper, feelingSize, behaviorSize, outputDomain);
 
         // 遗传信息 ×3（首轮清零）
+        // 用 mapper.zeroVector 而非硬编码 FloatVector cast——兼容 BoolVector（BNN）与
+        // FloatVector（CNN）两种载体（真善美第2/3条：上层 state 不感知下层 nn 载体家族）。
         this.prospectiveInheritance = mapper.createVector(this.cLen);
         this.retrospectiveInheritance = mapper.createVector(this.cLen);
         this.introspectiveInheritance = mapper.createVector(this.cLen);
-        ((FloatVector) this.prospectiveInheritance).multiplyByScalar(/* <- */ 0f, 0L);
-        ((FloatVector) this.retrospectiveInheritance).multiplyByScalar(/* <- */ 0f, 0L);
-        ((FloatVector) this.introspectiveInheritance).multiplyByScalar(/* <- */ 0f, 0L);
+        mapper.zeroVector(0L /* -> */, this.prospectiveInheritance);
+        mapper.zeroVector(0L /* -> */, this.retrospectiveInheritance);
+        mapper.zeroVector(0L /* -> */, this.introspectiveInheritance);
 
         // 传承 tC ×3（首轮清零）
-        this.prospectiveTC = mapper.createGradientVector(this.cLen);
-        this.retrospectiveTC = mapper.createGradientVector(this.cLen);
-        this.introspectiveTC = mapper.createGradientVector(this.cLen);
-        mapper.zeroGradient(0L /* -> */, this.prospectiveTC);
-        mapper.zeroGradient(0L /* -> */, this.retrospectiveTC);
-        mapper.zeroGradient(0L /* -> */, this.introspectiveTC);
+        // tC 用前向载体（createVector）而非梯度载体（createGradientVector）——
+        // 伪代码 grad_cell_op.py 中 tC 兼任 fw 的 C 输入（前向）与 bw 的 buf_tC 出参（梯度外拷），
+        // CNN 下两者同体（FloatVector）无矛盾；BNN 下前向=BoolVector、梯度=IntVector 不兼容，
+        // 故 tC 统一用前向载体，BNN backward 写 bufTc 时用 negateAndBinarize 把 IntVector 梯度
+        // 转成 BoolVector 前向（与原初代理 gradientToInput 同款 bit 转换，藏于 nn 家族内核）。
+        this.prospectiveTC = mapper.createVector(this.cLen);
+        this.retrospectiveTC = mapper.createVector(this.cLen);
+        this.introspectiveTC = mapper.createVector(this.cLen);
+        mapper.zeroVector(0L /* -> */, this.prospectiveTC);
+        mapper.zeroVector(0L /* -> */, this.retrospectiveTC);
+        mapper.zeroVector(0L /* -> */, this.introspectiveTC);
 
         // 工作草稿（快环）
         this.fastY = mapper.createVector(outputDomain.totalLength());
@@ -102,7 +117,10 @@ public class UranaState {
         this.slowBufX = mapper.createVector(inputDomain.totalLength());
         this.buf_t = mapper.createVector(outputDomain.totalLength());
 
-        // 快→慢的流程边
-        this.pushEvent = new Event();
+        // 快→慢的流程边：三缓冲（照搬原初代理模式）
+        this.traceEvent = new Event[3];
+        for (int i = 0; i < 3; i++) {
+            this.traceEvent[i] = new Event();
+        }
     }
 }

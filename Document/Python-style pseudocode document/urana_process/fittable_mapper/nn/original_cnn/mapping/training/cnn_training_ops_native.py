@@ -12,7 +12,7 @@
 # 更新→可接受噪声，与 BNN 同理）。
 
 
-def ___cnnBackwardLayer(traceZ, traceY, target, x,
+def _cnnBackwardLayer(traceZ, traceY, target, x,
                       hp_p, hp_q, hp_l, hp_r, hp_b,
                       hp_idx0, hp_idx1, hp_w0, hp_w1,
                       sizeA0, sizeA1, sizeC, lr, stream,

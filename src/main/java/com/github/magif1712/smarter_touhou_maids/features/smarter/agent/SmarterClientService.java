@@ -20,7 +20,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * smarter 模式的客户端入口与生命周期容器（薄容器，委托 {@link IAgent} 执行业务逻辑）。
@@ -92,23 +94,48 @@ public class SmarterClientService {
     private EntityMaid persistMaid = null;
 
     /**
-     * maid 来源（客户端）。由具体 agent 的 sensor 子系统在 client setup 阶段注入
-     * （如 reflex_arc 的 possession 注入 getPossessedMaid）。上层不依赖任何具体 maid 来源
-     * （真善美第3条：换 sensor/agent 时 maid 来源随之切换，本类零改动；第4条：把"maid 来源"
+     * maid 来源集合（客户端）。由各 agent 分支的 sensor 子系统在 client setup 阶段注入
+     * （如 reflex_arc 的 possession 注入 getPossessedMaid）。多代理共存（D4 形态修正）时
+     * 各分支各注入一份，取第一个非 null 结果——同一时刻玩家只附身一个 maid，只有持有该
+     * maid 的分支来源返回非 null。上层不依赖任何具体 maid 来源（真善美第3条：换/删
+     * sensor/agent 分支时 maid 来源集合随之增减，本类零改动；第4条：把"maid 来源"
      * 这个不实在的概念实在化为接口）。
      */
-    private MaidSource maidSource = () -> null;
+    private final List<MaidSource> maidSources = new CopyOnWriteArrayList<>();
 
-    /** 注入 maid 来源（供 reflex_arc 等 agent 的 sensor 子系统在 client setup 调用）。 */
-    public void setMaidSource(MaidSource maidSource) {
-        this.maidSource = maidSource;
+    /**
+     * 注入 maid 来源（供各 agent 分支的 sensor 子系统在 client setup 调用，可多份共存）。
+     */
+    public void addMaidSource(MaidSource maidSource) {
+        maidSources.add(maidSource);
+    }
+
+    /** 遍历各分支来源，取第一个非 null 的 maid（未附身时返回 null）。 */
+    private EntityMaid getMaidFromSources() {
+        for (MaidSource source : maidSources) {
+            EntityMaid maid = source.get();
+            if (maid != null) {
+                return maid;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 渲染钩子是否需要触发（供 GameRendererMixin 等外周做分支无关的 fast-path 判断）。
+     * <p>
+     * 分支无关（多代理共存，D4 形态修正）：本服务只看自身 agent 是否初始化且激活，
+     * 不感知任何具体分支的 possession 状态——附属模组添加新代理时 mixin 零改动。
+     */
+    public boolean isVisionCaptureNeeded() {
+        return initialized && agent != null && agent.isActive();
     }
 
     @SubscribeEvent
     public void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
 
-        EntityMaid maid = maidSource.get();
+        EntityMaid maid = getMaidFromSources();
         // smarter 就绪 = maid 任务模式为"自动任务"（maid 来源经 MaidSource 注入，如 reflex_arc
         // 的 possession 注入 getPossessedMaid）。maid.getTask() 经 SynchedEntityData 自动双端同步，
         // 客户端可靠读取（不依赖不同步的 persistentData）。maid 为 null 时
@@ -158,7 +185,7 @@ public class SmarterClientService {
 
     private void init() {
         LOGGER.info("[ReflexArc] 初始化 ReflexArcSystem...");
-        EntityMaid maid = maidSource.get();
+        EntityMaid maid = getMaidFromSources();
 
         // 组装 config：只复制 maid 的 AiModes（各层 mode id）。
         // maid 为 null 时 config 为空，registry.resolve("") fallback 到各层默认 entry（旧存档兼容）。

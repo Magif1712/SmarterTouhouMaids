@@ -1,5 +1,6 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent;
 
+import com.github.magif1712.smarter_touhou_maids.SmarterTouhouMaids;
 import com.github.magif1712.smarter_touhou_maids.features.maid.compat.task.AutoTask;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.AgentFactory;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.IAgent;
@@ -12,6 +13,7 @@ import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_a
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.effector.IEffector;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.ISensor;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.SensorFactory;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.PossessionSensorFactory;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.Registry;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryEntry;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryIds;
@@ -19,6 +21,7 @@ import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.List;
 
@@ -43,18 +46,39 @@ import java.util.List;
  */
 public class ReflexArcSystemAgentFactory implements AgentFactory, ParamPanelProvider {
 
+    /**
+     * 本分支在 AGENT registry 的 entry id（{@code AiModeDefaults} 注册 smarter 时引用）。
+     * possession 等分支私有模式的守卫以此比对 maid 选中的 agent（多代理共存，D4 形态修正）。
+     * dist 中立（客户端输入守卫 / 服务端附身请求守卫共用）。
+     */
+    public static final ResourceLocation AGENT_ID =
+            new ResourceLocation(SmarterTouhouMaids.MOD_ID, "smarter");
+
     @Override
     public IAgent create(CompoundTag config, EntityMaid maid, SaveSlot slot) {
         // === 查 AiRegistry 取下层 ai factory（自驱组装 process/nn）===
-        Registry<?> aiRegistry = RegistryManager.INSTANCE.get(RegistryIds.AI);
-        RegistryEntry<?> aiEntry = aiRegistry.resolve(config.getString(RegistryIds.AI.toString()));
+        // 新版代理用 AI_SMARTER（独立 registry，只含 urana——与原初代理隔离，
+        // 避免跨代理流程选择导致的不兼容组合）
+        Registry<?> aiRegistry = RegistryManager.INSTANCE.get(RegistryIds.AI_SMARTER);
+        RegistryEntry<?> aiEntry = aiRegistry.resolve(config.getString(RegistryIds.AI_SMARTER.toString()));
         AiFactory aiFactory = (AiFactory) aiEntry.getFactory();
         // 下层 ai factory 自驱组装其内部 process/nn（config + maid + slot 透传，各层各取所需）
         IAiSystem ai = aiFactory.create(config, maid, slot);
 
         // === 查 SensorRegistry 取下层 sensor factory（叶子，无递归）===
         Registry<?> sensorRegistry = RegistryManager.INSTANCE.get(RegistryIds.SENSOR);
-        RegistryEntry<?> sensorEntry = sensorRegistry.resolve(config.getString(RegistryIds.SENSOR.toString()));
+        // sensor 选择：config 显式选择时用之；缺失/空时回退本代理的默认 sensor
+        // （on_demand_possession_sensor，采集/解码分离的拉模型版），不依赖 registry 默认 entry
+        // （那是原初代理的默认 possession_sensor，与本代理的 ai 链载体不配）——
+        // 每个 agent 工厂自知其兼容默认（真善美第4条：默认选择实在化为工厂常量）。
+        String sensorIdStr = config.getString(RegistryIds.SENSOR.toString());
+        RegistryEntry<?> sensorEntry = (sensorIdStr == null || sensorIdStr.isEmpty())
+                ? sensorRegistry.get(PossessionSensorFactory.SENSOR_ID)
+                : sensorRegistry.resolve(sensorIdStr);
+        if (sensorEntry == null) {
+            throw new IllegalStateException(
+                    "本代理默认感受器未注册: " + PossessionSensorFactory.SENSOR_ID);
+        }
         SensorFactory sensorFactory = (SensorFactory) sensorEntry.getFactory();
         // feelingSize 由 ai.feelingSize() 算出传入（尺寸是 ai 层 Domain 知识）
         ISensor sensor = sensorFactory.create(ai.feelingSize());

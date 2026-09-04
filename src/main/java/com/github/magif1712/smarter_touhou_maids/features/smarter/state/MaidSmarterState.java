@@ -1,6 +1,9 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.state;
 
 import com.github.magif1712.smarter_touhou_maids.SmarterTouhouMaids;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.Registry;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryIds;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryManager;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
@@ -87,5 +90,24 @@ public final class MaidSmarterState {
         modes.putString(registryId.toString(), selectedId.toString());
         modData.put(KEY_AI_MODES, modes);
         data.put(SmarterTouhouMaids.MOD_ID, modData);
+    }
+
+    /**
+     * 读取 maid 选中的 agent entry id（含旧存档回退）。
+     * <p>
+     * 多代理共存（D4 形态修正）时各代理分支的 possession 守卫用：分支拿 maid 的 agent id
+     * 与自己的 entry id 比对，只有持 maid 的分支处理该 maid 的附身等私有模式。
+     * 未设置时（旧存档）回退 agent registry 的 defaultId，与外周组装 config 的
+     * {@code Registry.resolve} 回退语义一致。registry 未注册时返回 null（分支守卫按不匹配处理）。
+     * <p>
+     * dist 中立（客户端 PossessionManager / 服务端 ServerPossessionManager 共用）。
+     */
+    public static ResourceLocation getAgentId(EntityMaid maid) {
+        ResourceLocation agentId = getModeId(maid, RegistryIds.AGENT);
+        if (agentId == null) {
+            Registry<?> agentRegistry = RegistryManager.INSTANCE.get(RegistryIds.AGENT);
+            agentId = (agentRegistry != null) ? agentRegistry.getDefaultId() : null;
+        }
+        return agentId;
     }
 }

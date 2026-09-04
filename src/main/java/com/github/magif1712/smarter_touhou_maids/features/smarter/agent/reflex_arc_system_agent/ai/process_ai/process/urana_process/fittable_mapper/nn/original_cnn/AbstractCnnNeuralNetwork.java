@@ -3,7 +3,9 @@ package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_
 import com.github.magif1712.smarter_touhou_maids.core.containers.domain.Span;
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.FloatVector;
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.VectorBase;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.VisionEncoder;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.nn.INeuralNetwork;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.original_mapper.RgbFloatEncoder;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.nn.NnEncodingProfile;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.nn.original_cnn.containers.CnnFwTraceForBw;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.nn.original_cnn.containers.CnnHyperparameters;
@@ -88,6 +90,72 @@ public abstract class AbstractCnnNeuralNetwork implements INeuralNetwork {
     @Override
     public NnEncodingProfile encodingProfile() {
         return CNN_PROFILE;
+    }
+
+    // ==================== 感觉载体契约（CNN 家族：FloatVector RGB float）====================
+
+    /**
+     * CNN 家族的感觉载体是 FloatVector（浮点激活网络）。
+     * 载体类型知识留在本家族，上层经 ai 链拿产品（缓冲实例），无类型开关。
+     */
+    @Override
+    public VectorBase newFeelingBuffer(int feelingLength) {
+        return new FloatVector(feelingLength);
+    }
+
+    /**
+     * CNN 家族的视觉解码器：RGB float（通道平面式，w*h*3 元素）。
+     * 解码器实现住 original_mapper 家族包（fittable_mapper 层的解码文件归置），
+     * 与本家族（original_cnn）同属 original 族——家族内跨子包引用。
+     */
+    @Override
+    public VisionEncoder newVisionEncoder() {
+        return new RgbFloatEncoder();
+    }
+
+    // ==================== 行为载体契约（CNN 家族：FloatVector + float→bit 转换）====================
+
+    /**
+     * CNN 家族的行为载体是 FloatVector（浮点激活网络）。
+     * 使用 mapped pinned memory（零拷贝），主线程读取零 CUDA 调用，不 flush WDDM 命令缓冲。
+     */
+    @Override
+    public VectorBase newBehaviorBuffer(int behaviorLength) {
+        return FloatVector.mapped(behaviorLength);
+    }
+
+    /**
+     * CNN 行为读取：FloatVector → float[] → 阈值化 → bit-packed int[]。
+     * <p>
+     * float→bit 转换是 CNN 家族的内部模式（σ(z)≥0.5 → bit 1，即 sigmoid 判决边界），
+     * 与 BNN 的 sign 函数判决对齐——effector 收到统一 bit-packed int[]，接口零改动。
+     * 零 CUDA 调用：纯 host memcpy 读 mapped pinned memory，不 flush WDDM 命令缓冲。
+     */
+    @Override
+    public void readBehaviorTo(VectorBase behaviorBuffer, int[] dst, long stream) {
+        if (!(behaviorBuffer instanceof FloatVector fv)) {
+            throw new IllegalArgumentException("CNN readBehaviorTo requires FloatVector");
+        }
+        int floatCount = fv.size();
+        float[] floats = new float[floatCount];
+        // 零 CUDA 调用：纯 host memcpy 读 mapped pinned memory
+        fv.readMappedToJava(floats, floatCount);
+        // float→bit 阈值化 + LSB-first 打包
+        int wordCount = (floatCount + 31) / 32;
+        for (int i = 0; i < wordCount; i++) {
+            int word = 0;
+            int base = i * 32;
+            for (int b = 0; b < 32; b++) {
+                int idx = base + b;
+                if (idx >= floatCount) break;
+                if (floats[idx] >= 0.5f) {
+                    word |= (1 << b);
+                }
+            }
+            if (i < dst.length) {
+                dst[i] = word;
+            }
+        }
     }
 
     // ==================== CnnIO 区域读写 ====================

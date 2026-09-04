@@ -16,7 +16,9 @@ class Vector
 {
 private:
     T *d_data;
+    T *h_data;   // 非 mapped 时恒为 nullptr；mapped 时指向 host pinned 内存
     size_t m_size;
+    bool m_isMapped; // 默认 false；仅 allocateMapped() 置 true
 
     static void checkCudaError(cudaError_t err, const char *msg)
     {
@@ -28,7 +30,17 @@ private:
 
     void release() noexcept
     {
-        if (d_data != nullptr)
+        if (m_isMapped)
+        {
+            if (h_data != nullptr)
+            {
+                cudaFreeHost(h_data);
+                h_data = nullptr;
+            }
+            d_data = nullptr;
+            m_isMapped = false;
+        }
+        else if (d_data != nullptr)
         {
             cudaFree(d_data);
             d_data = nullptr;
@@ -37,9 +49,9 @@ private:
     }
 
 public:
-    Vector() : d_data(nullptr), m_size(0) {}
+    Vector() : d_data(nullptr), h_data(nullptr), m_size(0), m_isMapped(false) {}
 
-    explicit Vector(size_t size) : d_data(nullptr), m_size(size)
+    explicit Vector(size_t size) : d_data(nullptr), h_data(nullptr), m_size(size), m_isMapped(false)
     {
         if (m_size > 0)
         {
@@ -54,10 +66,12 @@ public:
     Vector(const Vector &) = delete;
     Vector &operator=(const Vector &) = delete;
 
-    Vector(Vector &&other) noexcept : d_data(other.d_data), m_size(other.m_size)
+    Vector(Vector &&other) noexcept : d_data(other.d_data), h_data(other.h_data), m_size(other.m_size), m_isMapped(other.m_isMapped)
     {
         other.d_data = nullptr;
+        other.h_data = nullptr;
         other.m_size = 0;
+        other.m_isMapped = false;
     }
 
     Vector &operator=(Vector &&other) noexcept
@@ -66,9 +80,13 @@ public:
         {
             release();
             d_data = other.d_data;
+            h_data = other.h_data;
             m_size = other.m_size;
+            m_isMapped = other.m_isMapped;
             other.d_data = nullptr;
+            other.h_data = nullptr;
             other.m_size = 0;
+            other.m_isMapped = false;
         }
         return *this;
     }
@@ -86,6 +104,25 @@ public:
             cudaMemset(d_data, 0, bytes());
         }
     }
+
+    void allocateMapped(size_t new_size)
+    {
+        release();
+        m_size = new_size;
+        m_isMapped = true;
+        if (m_size > 0)
+        {
+            cudaError_t err = cudaHostAlloc(reinterpret_cast<void **>(&h_data), bytes(), cudaHostAllocMapped);
+            checkCudaError(err, "Failed to allocate mapped host memory for Vector");
+            std::memset(h_data, 0, bytes());
+            err = cudaHostGetDevicePointer(reinterpret_cast<void **>(&d_data), h_data, 0);
+            checkCudaError(err, "Failed to get device pointer for mapped Vector");
+        }
+    }
+
+    T *hostData() { return h_data; }
+    const T *hostData() const { return h_data; }
+    bool isMapped() const { return m_isMapped; }
 
     T *data() { return d_data; }
     const T *data() const { return d_data; }

@@ -77,8 +77,10 @@ public class UranaProcessFactory implements ProcessFactory, DebugPanelProvider, 
 
     private static final String KEY_FAST_MIN_DT = "FastMinDtMillis";
     private static final String KEY_SLOW_MIN_DT = "SlowMinDtMillis";
-    /** minDt 默认值：0=不限速（全速运转）。 */
-    private static final long DEFAULT_MIN_DT = 0;
+    /** 快环 minDt 默认值：0=不限速（全速运转）。 */
+    private static final long DEFAULT_FAST_MIN_DT = 0;
+    /** 慢环 minDt 默认值：100ms。慢环每轮梯度后留 GPU 空隙给 GL 命令执行，防止 cudaGraphicsMapResources 阻塞渲染线程。 */
+    private static final long DEFAULT_SLOW_MIN_DT = 100;
     /** minDt 合法范围：[0, 5000] 毫秒。clamp 由本工厂负责。 */
     private static final long MIN_DT_MIN = 0;
     private static final long MIN_DT_MAX = 5000;
@@ -127,9 +129,9 @@ public class UranaProcessFactory implements ProcessFactory, DebugPanelProvider, 
         // 值类型解读是 factory 消费层的关注点，管道只搬 String。
         // maid 为 null 时 ParamStore.getString 返回默认值（不限速）。
         long fastMinDt = parseClampDt(
-                ParamStore.INSTANCE.getString(maid, KEY_FAST_MIN_DT, String.valueOf(DEFAULT_MIN_DT)));
+                ParamStore.INSTANCE.getString(maid, KEY_FAST_MIN_DT, String.valueOf(DEFAULT_FAST_MIN_DT)));
         long slowMinDt = parseClampDt(
-                ParamStore.INSTANCE.getString(maid, KEY_SLOW_MIN_DT, String.valueOf(DEFAULT_MIN_DT)));
+                ParamStore.INSTANCE.getString(maid, KEY_SLOW_MIN_DT, String.valueOf(DEFAULT_SLOW_MIN_DT)));
 
         // === mapper 注入 UranaSystem（profile 已下沉到 nn，domain 已下沉到 mapper）===
         // UranaSystem 期望 FittableMapper 接口——无需强转，支持装饰器层（真善美第2条：依赖接口）。
@@ -155,6 +157,9 @@ public class UranaProcessFactory implements ProcessFactory, DebugPanelProvider, 
                     // urana 不感知"定时持久化开关"概念，只收"间隔(0=禁用)"（真善美第3条）。
                     // 间隔单位是毫秒（墙钟时间，非轮数）——per-maid 读 ParamStore。
                     () -> {
+                        if (!PersistenceConfigProvider.isPersistenceEnabled(maid)) {
+                            return 0L;
+                        }
                         if (!PersistenceConfigProvider.isPeriodicSaveEnabled(maid)) {
                             return 0L;
                         }
@@ -189,12 +194,12 @@ public class UranaProcessFactory implements ProcessFactory, DebugPanelProvider, 
                 ParamOption.persistable(
                         Component.translatable("option.smarter_touhou_maids.fast_min_dt"),
                         Component.translatable("option.smarter_touhou_maids.fast_min_dt.tooltip"),
-                        KEY_FAST_MIN_DT, String.valueOf(DEFAULT_MIN_DT),
+                        KEY_FAST_MIN_DT, String.valueOf(DEFAULT_FAST_MIN_DT),
                         (maid, text) -> String.valueOf(parseClampDt(text))),
                 ParamOption.persistable(
                         Component.translatable("option.smarter_touhou_maids.slow_min_dt"),
                         Component.translatable("option.smarter_touhou_maids.slow_min_dt.tooltip"),
-                        KEY_SLOW_MIN_DT, String.valueOf(DEFAULT_MIN_DT),
+                        KEY_SLOW_MIN_DT, String.valueOf(DEFAULT_SLOW_MIN_DT),
                         (maid, text) -> String.valueOf(parseClampDt(text))));
     }
 
@@ -210,7 +215,7 @@ public class UranaProcessFactory implements ProcessFactory, DebugPanelProvider, 
     }
 
     /**
-     * 解析 minDt 文本：try parse long → clamp 到 [MIN_DT_MIN, MIN_DT_MAX] → 失败返回 DEFAULT_MIN_DT。
+     * 解析 minDt 文本：try parse long → clamp 到 [MIN_DT_MIN, MIN_DT_MAX] → 失败返回 0（安全回退 = 不限速）。
      * <p>
      * 值类型解读是 factory 消费层的关注点（真善美第3条）：不抽成集中工具类（避免每加值类型改工具类），
      * 本工厂自管自己的 long 解读。create() 读参数与 getParamOptions() 声明 textProcessor 共用此方法，单一数据源。
@@ -220,7 +225,7 @@ public class UranaProcessFactory implements ProcessFactory, DebugPanelProvider, 
             long v = Long.parseLong(text.trim());
             return Math.max(MIN_DT_MIN, Math.min(MIN_DT_MAX, v));
         } catch (NumberFormatException e) {
-            return DEFAULT_MIN_DT;
+            return 0L;
         }
     }
 }

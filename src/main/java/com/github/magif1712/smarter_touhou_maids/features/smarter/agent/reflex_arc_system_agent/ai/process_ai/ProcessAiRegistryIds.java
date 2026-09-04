@@ -15,9 +15,14 @@ import net.minecraft.resources.ResourceLocation;
  * 只要附属 ai entry 的 subRegistryId 指向附属自定义的 registry id，GUI 自动递归展开。
  */
 public final class ProcessAiRegistryIds {
-    /** 流程系统 registry：选哪个 process 实现（urana / ...），仅当上层 ai 需要 process 时展开。
-     *  由 AI 层决定（AI 层的直接下层），process 层引用此 id 注册 ProcessRegistry。 */
+    /** 流程系统 registry（原初代理用）：选哪个 process 实现（urana_original / ...）。
+     *  由 AI 层决定（AI 层的直接下层），process 层引用此 id 注册 ProcessRegistry。
+     *  原初代理的 AI registry 的 process_ai entry 指向此 registry。 */
     public static final ResourceLocation PROCESS = new ResourceLocation(SmarterTouhouMaids.MOD_ID, "process");
+    /** 流程系统 registry（新版代理用）：只含 urana（新版流程）。
+     *  与原初代理的 PROCESS registry 隔离（跨代理流程不可选，避免不兼容组合）。
+     *  新版代理的 AI_SMARTER registry 的 process_ai entry 指向此 registry。 */
+    public static final ResourceLocation PROCESS_SMARTER = new ResourceLocation(SmarterTouhouMaids.MOD_ID, "process_smarter");
 
     private ProcessAiRegistryIds() {
     }

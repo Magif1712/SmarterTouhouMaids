@@ -4,8 +4,8 @@ import com.github.magif1712.smarter_touhou_maids.core.containers.domain.Span;
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.FloatVector;
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.VectorBase;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.FittableMapper;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.VisionEncoder;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.nn.INeuralNetwork;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.nn.NnEncodingProfile;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.semantics.containers.io.InputVectorDomain;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.semantics.containers.io.OutputVectorDomain;
 
@@ -139,6 +139,11 @@ public class OriginalMapper implements FittableMapper, AutoCloseable {
         nn.zeroGradient(stream /* -> */, gradVec);
     }
 
+    @Override
+    public void zeroVector(long stream /* -> */, VectorBase vec) {
+        nn.zeroVector(stream /* -> */, vec);
+    }
+
     public VectorBase createVector(int size) {
         return nn.createVector(size);
     }
@@ -151,8 +156,26 @@ public class OriginalMapper implements FittableMapper, AutoCloseable {
         return nn.createFwTraceForBw();
     }
 
-    public NnEncodingProfile encodingProfile() {
-        return nn.encodingProfile();
+    // ---- 感觉载体契约：mapper 只透传，载体类型知识留在 nn 家族 ----
+
+    @Override
+    public VectorBase newFeelingBuffer() {
+        return nn.newFeelingBuffer(inputDomain.getFeelingSpan().getLength());
+    }
+
+    @Override
+    public VisionEncoder newVisionEncoder() {
+        return nn.newVisionEncoder();
+    }
+
+    @Override
+    public VectorBase newBehaviorBuffer() {
+        return nn.newBehaviorBuffer(outputDomain.getBehaviorSpan().getLength());
+    }
+
+    @Override
+    public void readBehaviorTo(VectorBase behaviorBuffer, int[] dst, long stream) {
+        nn.readBehaviorTo(behaviorBuffer, dst, stream);
     }
 
     /**

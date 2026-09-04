@@ -55,15 +55,16 @@ public class Texture implements AutoCloseable {
     }
 
     /**
-     * 将源纹理的内容快照到此纹理（GPU 侧拷贝）。
+     * 将源纹理的内容快照到此纹理（GPU 侧深拷贝）。
      * <p>
-     * 实现原理：调用 glCopyImageSubData 在 OpenGL 命令队列中插入异步拷贝操作，
+     * 实现原理：调用 glBlitFramebuffer 在 OpenGL 命令队列中插入异步的缩放拷贝操作，
      * 开销约 0.1ms，不会造成 CPU-GPU 数据传输。
      * <p>
-     * 实际拷贝区域 = min(srcWidth, 本纹理宽度) × min(srcHeight, 本纹理高度)：
+     * 实际拷贝区域 = 整源 (srcWidth × srcHeight) 缩放 blit 填满本纹理全域，GL_NEAREST 跨步抽样：
      * <ul>
-     *   <li>源 > 本纹理：裁剪左上角区域（不越界）</li>
-     *   <li>源 < 本纹理：只复制源实际尺寸（避免 GL_INVALID_VALUE）</li>
+     *   <li>源 > 本纹理 (2K→1080p)：blit 降采样（跨步），整窗口可见</li>
+     *   <li>源 = 本纹理 (1080p)：1:1</li>
+     *   <li>源 < 本纹理 (720p→1080p)：blit 升采样（像素复制），整窗口可见</li>
      * </ul>
      * 采样分辨率由 Java 侧决定（传入源实际尺寸），C 侧不硬编码任何分辨率。
      * <p>

@@ -7,6 +7,9 @@ class CnnFwTraceForBw:
     （δ_j = 2(y_j - y'_j) · y_j(1-y_j)）。
     z 存储备用（数值检查/调试），反向 kernel 不直接读——σ'(z) 用 y 即可，
     避免重复计算 σ(z) 的浮点误差。
+
+    资源容器：由 AbstractCnnNeuralNetwork.createFwTraceForBw 创建，
+    close 时释放 z/y。
     """
 
     def __init__(self, z, y):
@@ -14,3 +17,11 @@ class CnnFwTraceForBw:
         # y: activation = σ(z)，前向最终输出，反向充分信息
         self.z = z
         self.y = y
+
+    def getZ(self):
+        return self.z
+
+    def getY(self):
+        return self.y
+
+    def close(self): ...

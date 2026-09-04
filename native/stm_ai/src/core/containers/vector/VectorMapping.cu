@@ -251,6 +251,7 @@ void multiplyVectorByScalarInPlace(
 
 // Explicit instantiations
 template void multiplyVectorByScalarInPlace<int>(Vector<int>& vector, int scalar, size_t offset, size_t length, cudaStream_t stream);
+template void multiplyVectorByScalarInPlace<float>(Vector<float>& vector, float scalar, size_t offset, size_t length, cudaStream_t stream);
 
 // ====================================================================
 // 随机初始化（PCG hash，无 curand 依赖）
@@ -320,4 +321,34 @@ void fillRandomInts(Vector<int> &vec, int maxVal, uint64_t seed, cudaStream_t st
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess)
         throw std::runtime_error(std::string("fillRandomIntsKernel launch failed: ") + cudaGetErrorString(err));
+}
+
+// 每个 float 填一个 [0, bound) 的随机值：PCG hash → [0,1) 均匀分布 → 缩放到 bound。
+__global__ void fillRandomFloatsKernel(float *__restrict__ data, size_t n, float bound, uint32_t seed)
+{
+    size_t i = (size_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n)
+        return;
+    uint32_t h = pcgHash(seed ^ (uint32_t)i);
+    float u01 = (float)h * (1.0f / 4294967296.0f); // [0,1)
+    data[i] = (bound > 0.0f) ? u01 * bound : 0.0f;
+}
+
+void fillRandomFloats(Vector<float> &vec, float bound, uint64_t seed, cudaStream_t stream)
+{
+    size_t n = vec.size();
+    if (n == 0)
+        return;
+    if (vec.data() == nullptr)
+        throw std::runtime_error("fillRandomFloats: vector device pointer is null (allocation failed?)");
+
+    constexpr int threads = 256;
+    int blocks = static_cast<int>((n + threads - 1) / threads);
+    uint32_t s = (uint32_t)seed ^ (uint32_t)(seed >> 32);
+
+    cudaGetLastError();
+    fillRandomFloatsKernel<<<blocks, threads, 0, stream>>>(vec.data(), n, bound, s);
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess)
+        throw std::runtime_error(std::string("fillRandomFloatsKernel launch failed: ") + cudaGetErrorString(err));
 }

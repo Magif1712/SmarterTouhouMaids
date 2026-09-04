@@ -28,8 +28,13 @@ public final class RegistryIds {
     /** 顶层 agent registry：选哪个 agent 实现（smarter / 附属的别的 agent） */
     public static final ResourceLocation AGENT = new ResourceLocation(SmarterTouhouMaids.MOD_ID, "agent");
     /** ai registry：选哪个 ai 实现（流程型 / 纯规则 / ...），仅当上层 agent 需要 ai 时展开。
-     *  由 agent 层决定（agent 层的直接下层），AI 层引用此 id 注册 AiRegistry。 */
+     *  由 agent 层决定（agent 层的直接下层），AI 层引用此 id 注册 AiRegistry。
+     *  原初代理（smarter_original）使用此 registry——只含 urana_original 流程。 */
     public static final ResourceLocation AI = new ResourceLocation(SmarterTouhouMaids.MOD_ID, "ai");
+    /** ai_smarter registry：新版代理（smarter）的独立 AI registry——只含 urana 流程，
+     *  与原初代理的 AI registry 隔离（跨代理流程不可选，避免不兼容组合）。
+     *  由 agent 层决定（agent 层的直接下层），AI 层引用此 id 注册 AiRegistry。 */
+    public static final ResourceLocation AI_SMARTER = new ResourceLocation(SmarterTouhouMaids.MOD_ID, "ai_smarter");
     /** 感受器 registry：选哪个感受器实现（possession_sensor / ...），与 ai 并列（agent 下 sensor+ai+effector） */
     public static final ResourceLocation SENSOR = new ResourceLocation(SmarterTouhouMaids.MOD_ID, "sensor");
     /** 效应器 registry：选哪个效应器实现（bionic_muscle_effector / ...），与 ai 并列（agent 下 sensor+ai+effector） */

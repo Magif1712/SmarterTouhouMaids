@@ -1,9 +1,11 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process;
 
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.VectorBase;
+import com.github.magif1712.smarter_touhou_maids.core.execution.RefreshRequest;
 import com.github.magif1712.smarter_touhou_maids.core.execution.event.Event;
 import com.github.magif1712.smarter_touhou_maids.core.execution.MappedGenerationBuffer;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.SaveSlot;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.VisionEncoder;
 
 /**
  * 流程系统的顶层抽象边界（意识体契约）。
@@ -16,12 +18,12 @@ import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persiste
  *       具体流程系统的实现，不进本接口。换流程系统（urana→别的）时，实现 IProcessSystem 即可，
  *       外周（SmarterClientService）运行期零改动。</li>
  *   <li><b>第3条</b>：把"可替换流程系统"这个不实在的约束，用实在的接口（有签名的方法）固化。
- *       与 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process_original.nn.INeuralNetwork}
+ *       与 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent_original.ai.process_ai.process.urana_process_original.nn.INeuralNetwork}
  *       固化"可替换 NN"同构——nn 层与流程层各自有抽象边界，形成对称结构。</li>
  * </ul>
  * <p>
  * <b>与 INeuralNetwork 的分层</b>：本接口是流程系统对<b>外周</b>的契约（感觉/行为/启停）；
- * {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process_original.nn.INeuralNetwork}
+ * {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent_original.ai.process_ai.process.urana_process_original.nn.INeuralNetwork}
  * 是 NN 对<b>流程系统</b>的契约（前向/反向/区域读写）。两层正交：换 nn 不影响本接口，
  * 换流程系统不影响 INeuralNetwork。UranaSystem 同时是这两层的消费者——它实现本接口对外服务，
  * 内部持 INeuralNetwork 做计算。
@@ -30,7 +32,7 @@ import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persiste
  * （由 UranaSystem 构造函数接收）。本接口的 {@link #setDtDebugEnabled} 只控制"是否打印 dt 日志"
  * 这个通用诊断开关，dt 的语义（哪几个环、间隔含义）由实现自管。
  *
- * @see com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process_original.UranaSystem
+ * @see com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent_original.ai.process_ai.process.urana_process_original.UranaSystem
  */
 public interface IProcessSystem extends AutoCloseable {
 
@@ -46,6 +48,19 @@ public interface IProcessSystem extends AutoCloseable {
      * @param behaviorChannel 行为产出通道，由外周创建注入。意识体只用其 producer 面。非意识体所有。
      */
     void awaken(VectorBase feelingBuffer, Event visionEvent, MappedGenerationBuffer behaviorChannel);
+
+    /**
+     * 注入感觉刷新请求（拉模型，可选能力）。
+     * <p>
+     * 支持按需感觉的意识体 Override 本方法存下请求：快环每轮开头 request，感受器
+     * consume 后才编码。不支持的意识体走默认实现（忽略请求，保持推模型）——契约向后兼容，
+     * 旧实现零改动。上层（如 ProcessAiSystem）在 awaken 后转发调用。
+     *
+     * @param feelingRefresh 感觉刷新请求（agent 拥有，纯 host 对象）。
+     */
+    default void setRefreshRequest(RefreshRequest feelingRefresh) {
+        // 默认无操作：不支持拉模型的意识体忽略刷新请求
+    }
 
     /**
      * 关闭意识体，停止工作线程并释放所有资源。
@@ -82,4 +97,44 @@ public interface IProcessSystem extends AutoCloseable {
      * 意识体所需的行为输出尺寸（外周据此创建 MappedGenerationBuffer）。
      */
     int behaviorSize();
+
+    /**
+     * 创建感觉缓冲区（可选能力，default 委托链的 process 段）。
+     * <p>
+     * 载体契约由 ai 链内部（mapper→nn）定义，process 只透传——上层（agent 经 ai）据此创建
+     * 共享 feelingBuffer，无类型开关。未实现的流程（如旧版 urana_original）走默认（抛异常），
+     * 与新版代理组装时即 fail-fast（组合不兼容在装配期暴露，非运行期垃圾数据）。
+     */
+    default VectorBase newFeelingBuffer() {
+        throw new UnsupportedOperationException(
+                "此流程未发布感觉载体契约（如旧版 urana_original 不适用于 smarter 代理）；请改用 urana 流程或 smarter_original 代理");
+    }
+
+    /**
+     * 创建视觉解码器（可选能力，default 委托链的 process 段）。
+     * <p>
+     * 解码器由 ai 链内部（mapper→nn）提供（与载体配对），process 只透传。
+     * agent 取得后注入感受器（ISensor.setVisionEncoder）。
+     */
+    default VisionEncoder newVisionEncoder() {
+        throw new UnsupportedOperationException(
+                "此流程未发布视觉解码器（如旧版 urana_original 不适用于 smarter 代理）；请改用 urana 流程或 smarter_original 代理");
+    }
+
+    /**
+     * 创建行为缓冲区（可选能力，default 委托链的 process 段）。
+     */
+    default VectorBase newBehaviorBuffer() {
+        throw new UnsupportedOperationException(
+                "此流程未发布行为载体契约（如旧版 urana_original 不适用于 smarter 代理）；请改用 urana 流程或 smarter_original 代理");
+    }
+
+    /**
+     * 行为读取（可选能力，default 委托链的 process 段）。
+     * 把行为缓冲区载体数据读出为 int[]（effector 期望的 bit-packed 格式）。
+     */
+    default void readBehaviorTo(VectorBase behaviorBuffer, int[] dst, long stream) {
+        throw new UnsupportedOperationException(
+                "此流程未发布行为读取契约（如旧版 urana_original 不适用于 smarter 代理）；请改用 urana 流程或 smarter_original 代理");
+    }
 }

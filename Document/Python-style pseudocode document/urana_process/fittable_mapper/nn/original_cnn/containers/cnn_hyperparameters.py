@@ -25,6 +25,9 @@ class CnnHyperparameters:
     """
 
     def __init__(self, sizeA0, sizeA1, _p=None, _q=None, _l=None, _r=None, _b=None):
+        if _p is None:
+            if sizeA0 < 0 or sizeA1 < 0:
+                raise ValueError("size must be non-negative")
         self.sizeA0 = sizeA0
         self.sizeA1 = sizeA1
         if _p is not None:
@@ -89,6 +92,8 @@ class CnnHyperparameters:
 
     def save(self, folderPath):
         # 仅存语义权重 p/q/l/r/b；idx/w 不存（派生缓存，loadFromFile 后重算）
+        import os
+        os.makedirs(folderPath, exist_ok=True)
         self.p.save(folderPath + "/p.bin")
         self.q.save(folderPath + "/q.bin")
         self.l.save(folderPath + "/l.bin")

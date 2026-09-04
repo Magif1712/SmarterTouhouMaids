@@ -1,10 +1,12 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai;
 
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.VectorBase;
+import com.github.magif1712.smarter_touhou_maids.core.execution.RefreshRequest;
 import com.github.magif1712.smarter_touhou_maids.core.execution.event.Event;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.SaveSlot;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.IAiSystem;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.IProcessSystem;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.VisionEncoder;
 import com.github.magif1712.smarter_touhou_maids.core.execution.MappedGenerationBuffer;
 
 /**
@@ -65,6 +67,33 @@ public class ProcessAiSystem implements IAiSystem {
     @Override
     public void awaken(VectorBase feelingBuffer, Event visionEvent, MappedGenerationBuffer behaviorChannel) {
         process.awaken(feelingBuffer, visionEvent, behaviorChannel);
+    }
+
+    @Override
+    public void setRefreshRequest(RefreshRequest feelingRefresh) {
+        process.setRefreshRequest(feelingRefresh);
+    }
+
+    // ---- 感觉载体契约：ai 只透传，载体类型知识留在下层（process→mapper→nn）----
+
+    @Override
+    public VectorBase newFeelingBuffer() {
+        return process.newFeelingBuffer();
+    }
+
+    @Override
+    public VisionEncoder newVisionEncoder() {
+        return process.newVisionEncoder();
+    }
+
+    @Override
+    public VectorBase newBehaviorBuffer() {
+        return process.newBehaviorBuffer();
+    }
+
+    @Override
+    public void readBehaviorTo(VectorBase behaviorBuffer, int[] dst, long stream) {
+        process.readBehaviorTo(behaviorBuffer, dst, stream);
     }
 
     @Override

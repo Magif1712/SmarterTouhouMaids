@@ -383,6 +383,199 @@ extern "C"
     }
 
     // ===================================================================
+    // Vector<float> 接口（与 Vector<int> 对称：CNN 浮点权重/激活/梯度）
+    // ===================================================================
+
+    Vector<float> *VectorCreateFloat()
+    {
+        try
+        {
+            return new Vector<float>();
+        }
+        catch (const std::exception &e)
+        {
+            std::cerr << "Error in VectorCreateFloat: " << e.what() << std::endl;
+            return nullptr;
+        }
+    }
+
+    void VectorAllocateFloat(Vector<float> *vec, size_t size)
+    {
+        if (vec)
+        {
+            try
+            {
+                vec->allocate(size);
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "Error in VectorAllocateFloat: " << e.what() << std::endl;
+                throw;
+            }
+        }
+    }
+
+    void VectorDeleteFloat(Vector<float> *vec)
+    {
+        delete vec;
+    }
+
+    void VectorCopyFromHostFloat(Vector<float> *vec, const float *h_data, size_t count, cudaStream_t stream)
+    {
+        if (vec)
+        {
+            try
+            {
+                vec->copyFromHost(h_data, count, stream);
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "Error in VectorCopyFromHostFloat: " << e.what() << std::endl;
+                throw;
+            }
+        }
+    }
+
+    void VectorCopyToHostFloat(Vector<float> *vec, float *h_data, size_t count)
+    {
+        if (vec)
+        {
+            try
+            {
+                vec->copyToHost(h_data, count);
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "Error in VectorCopyToHostFloat: " << e.what() << std::endl;
+                throw;
+            }
+        }
+    }
+
+    void VectorSaveFloat(Vector<float> *vec, const std::filesystem::path &filename)
+    {
+        if (vec)
+        {
+            try
+            {
+                vec->save(filename);
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "Error in VectorSaveFloat: " << e.what() << std::endl;
+                throw;
+            }
+        }
+    }
+
+    void VectorLoadFromFileFloat(Vector<float> *vec, const std::filesystem::path &filename)
+    {
+        if (vec)
+        {
+            try
+            {
+                vec->loadFromFile(filename);
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "Error in VectorLoadFromFileFloat: " << e.what() << std::endl;
+                throw;
+            }
+        }
+    }
+
+    size_t VectorGetSizeFloat(Vector<float> *vec)
+    {
+        return vec ? vec->size() : 0;
+    }
+
+    void VectorCopyRegionFromFloat(Vector<float>* dst, size_t dst_offset, const Vector<float>* src, size_t src_offset, size_t num_elements, cudaStream_t stream)
+    {
+        if (dst && src)
+        {
+            try
+            {
+                dst->copyRegionFrom(dst_offset, *src, src_offset, num_elements, stream);
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "Error in VectorCopyRegionFromFloat: " << e.what() << std::endl;
+                throw;
+            }
+        }
+    }
+
+    void VectorSetRegionFloat(Vector<float>* dst, size_t dest_offset, const Vector<float>* src, cudaStream_t stream)
+    {
+        if (dst && src)
+        {
+            try
+            {
+                dst->setRegion(dest_offset, *src, stream);
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "Error in VectorSetRegionFloat: " << e.what() << std::endl;
+                throw;
+            }
+        }
+    }
+
+    void VectorCopyRegionFromHostFloat(Vector<float>* dst, size_t dest_offset, const float* src_host_data, size_t num_elements, cudaStream_t stream)
+    {
+        if (dst && src_host_data)
+        {
+            try
+            {
+                dst->copyRegionFromHost(dest_offset, src_host_data, num_elements, stream);
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "Error in VectorCopyRegionFromHostFloat: " << e.what() << std::endl;
+                throw;
+            }
+        }
+    }
+
+    void VectorAllocateFloatMapped(Vector<float> *vec, size_t size)
+    {
+        if (vec)
+        {
+            try
+            {
+                vec->allocateMapped(size);
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "Error in VectorAllocateFloatMapped: " << e.what() << std::endl;
+                throw;
+            }
+        }
+    }
+
+    // 纯 host memcpy：把 mapped host 内存拷到 out。零 CUDA 调用，不 flush WDDM 命令缓冲。
+    // 设计原则（真善美第 3 条）：behavior 就绪状态已由 mapped 内存固化，读取它无需任何 GPU 同步。
+    void VectorReadMappedFloat(Vector<float> *vec, float *out, size_t count)
+    {
+        if (!vec || !out || count == 0)
+            return;
+        try
+        {
+            float *host_ptr = vec->hostData();
+            if (!host_ptr)
+                throw std::runtime_error("VectorReadMappedFloat called on non-mapped vector");
+            if (count > vec->size())
+                throw std::out_of_range("count exceeds mapped vector capacity");
+            std::memcpy(out, host_ptr, count * sizeof(float));
+        }
+        catch (const std::exception &e)
+        {
+            std::cerr << "Error in VectorReadMappedFloat: " << e.what() << std::endl;
+            throw;
+        }
+    }
+
+    // ===================================================================
     // 算法接口
     // ===================================================================
 
@@ -457,6 +650,22 @@ extern "C"
         }
     }
 
+    void VectorMultiplyByScalarFloat(Vector<float> *vector, float scalar, size_t offset, size_t length, cudaStream_t stream)
+    {
+        if (vector)
+        {
+            try
+            {
+                multiplyVectorByScalarInPlace(*vector, scalar, offset, length, stream);
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "Error in VectorMultiplyByScalarFloat: " << e.what() << std::endl;
+                throw;
+            }
+        }
+    }
+
     // 用 PCG 随机填充位向量（BNN 权重初始化）。
     // 同步语义：launch 后 cudaStreamSynchronize(0)，保证 Hyperparameters 构造返回时权重已写完——
     // SmarterClientService.init 在构造 UranaSystem 后才 awaken 启动工作线程，故权重必在工作线程
@@ -491,6 +700,24 @@ extern "C"
             catch (const std::exception &e)
             {
                 std::cerr << "Error in VectorFillRandomInt: " << e.what() << std::endl;
+                throw;
+            }
+        }
+    }
+
+    // 用 PCG 随机填充浮点向量，元素 ∈ [0, bound)（CNN 权重初始化）。同步语义同上。
+    void VectorFillRandomFloat(Vector<float> *vec, float bound, uint64_t seed)
+    {
+        if (vec)
+        {
+            try
+            {
+                fillRandomFloats(*vec, bound, seed, 0);
+                cudaStreamSynchronize(0);
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "Error in VectorFillRandomFloat: " << e.what() << std::endl;
                 throw;
             }
         }

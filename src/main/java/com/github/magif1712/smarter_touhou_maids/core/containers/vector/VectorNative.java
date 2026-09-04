@@ -125,9 +125,8 @@ public class VectorNative {
     public static native void _fillRandomInt(long handle, int maxVal, long seed);
 
     // ====================================================================
-    // Vector<float> 原生方法（C 侧待实现，先声明接口）
-    // 与 Vector<int> 对称：用于 CNN 浮点权重/激活/梯度。运行时调用会
-    // UnsatisfiedLinkError（C 侧未实现），编译通过——这是用户接受的"先写接口 opnative"。
+    // Vector<float> 原生方法
+    // 与 Vector<int> 对称：用于 CNN 浮点权重/激活/梯度。
     // ====================================================================
     public static native long _createVectorFloat();
 
@@ -160,4 +159,20 @@ public class VectorNative {
      * 用 PCG 哈希随机填充浮点向量，元素 ∈ [0, bound)（CNN 权重初始化）。同步语义同 _fillRandomInt。
      */
     public static native void _fillRandomFloat(long handle, float bound, long seed);
+
+    /**
+     * 分配为 host mapped pinned memory（zero-copy）。
+     * <p>
+     * GPU 经 device 视图写等价于写 host 内存，host 经 {@link #_readMappedFloat} 直接读，零 D2H、零 sync。
+     * 设计原则（真善美第 3 条）：把"behavior 是否写完"用 host 直接可见的 mapped 内存固化，
+     * CPU 侧读取无需任何 CUDA 同步调用（不 flush WDDM 命令缓冲）。
+     */
+    public static native void _allocateFloatMapped(long handle, int size);
+
+    /**
+     * 从 mapped host 内存读取到 float[]（纯 host memcpy，零 CUDA 调用，不 flush WDDM）。
+     * <p>
+     * 调用方应先检查 generation 判断 GPU 已写完，再调此方法读完整 behavior，避免撕裂。
+     */
+    public static native void _readMappedFloat(long handle, float[] data, int count);
 }

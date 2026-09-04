@@ -2,15 +2,12 @@ package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_
 
 import com.github.magif1712.smarter_touhou_maids.core.containers.domain.Span;
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.VectorBase;
-import com.github.magif1712.smarter_touhou_maids.core.execution.MappedGenerationBuffer;
-import com.github.magif1712.smarter_touhou_maids.core.execution.event.Event;
 import com.github.magif1712.smarter_touhou_maids.core.execution.stream.Stream;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.common.Anc;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.common.GradCellOp;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.common.InferenceCellOp;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.common.UranaConstants;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.FittableMapper;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.semantics.containers.io.subspan.BehaviorSpan;
 
 /**
  * urana 的算法流程（纯函数版，照搬伪代码 {@code urana_function.py}）：世界是过程的集合。
@@ -34,38 +31,35 @@ public final class UranaFunction {
     }
 
     /**
-     * 快环一拍：从"现在"的实际感觉出发，往返推理出本拍行为并发布。
+     * 快环一拍（纯算法）：从"现在"的实际感觉出发，往返推理出本拍行为。
+     * <p>
+     * 纯算法——不含节律控制（waitEvent）、外周输出（behaviorChannel）、
+     * 三缓冲 record 等系统层模式（真善美第2条：上层模式不塞进下层算子）。
+     * 调用方（UranaSystem.runFastLoop）负责节律控制与外周输出。
      */
-    public static void fastTick(FittableMapper mapper, UranaState state, VectorBase currentFeeling, long dtMillis, Event visionEvent, Stream fastStream /* -> */, MappedGenerationBuffer behaviorChannel, UranaState bufState) {
+    public static void fastTick(FittableMapper mapper, UranaState state, VectorBase currentFeeling, long dtMillis, Stream fastStream /* -> */, UranaState bufState) {
         long stream = fastStream.getHandle();
-
-        if (visionEvent != null) {
-            fastStream.waitEvent(/* <- */ visionEvent);
-        }
 
         // 前瞻推理：N=2，[G_FUTURE_N, G_PAST_N]——向未来 n 刻再反推回现在
         InferenceCellOp.inferenceCellOp(mapper, 2, new boolean[][]{UranaConstants.G_FUTURE_N, UranaConstants.G_PAST_N}, dtMillis, state.prospectiveInheritance, currentFeeling, stream /* -> */, bufState.fastY, bufState.fastBufX);
 
-        // 行为 → 外周通道
-        behaviorChannel.getBuffer().copyRegionFrom(/* <- */ state.fastY, state.outputDomain.getBehaviorSpan(), new BehaviorSpan(0, state.behaviorLen), stream);
         // 行动者工作记忆更新（快环独占）
         bufState.prospectiveInheritance.copyRegionFrom(/* <- */ state.fastY, state.outputDomain.getInheritanceInfoSpan(), new Span(0, state.cLen) {}, stream);
 
-        behaviorChannel.publish(/* <- */ stream);
-
-        // 快环职责：更新悬浮物锚点——本拍感觉 + 本拍推理行为，构成完整时刻；record 通知慢环
+        // 快环职责：更新悬浮物锚点——本拍感觉 + 本拍推理行为，构成完整时刻
         bufState.prospectiveAncSlider.pushSuspensionFrom(/* <- */ currentFeeling, state.fastY, stream, state.outputDomain);
-        bufState.pushEvent.record(/* <- */ stream);
     }
 
     /**
-     * 慢环一轮：等快环 → 三环训练（前瞻梯度 → 回溯推理+梯度 → 内省推理 → 训练语境）。
+     * 慢环一轮：三环训练（前瞻梯度 → 回溯推理+梯度 → 内省推理 → 训练语境）。
+     * <p>
+     * 节律控制（waitEvent + CPU 守卫）移至 {@link UranaSystem#runSlowLoop}——
+     * 算子只管计算，系统层负责节律（真善美第2条：上层模式不塞进下层算子）。
      */
     public static void slowTick(FittableMapper mapper, UranaState state, long dtMillis, Stream uranaStream /* -> */, UranaState bufState, FittableMapper bufMapper) {
         long stream = uranaStream.getHandle();
 
-        // 等快环 → 滑动锚点
-        uranaStream.waitEvent(/* <- */ state.pushEvent);
+        // 滑动锚点（waitEvent 已在 UranaSystem.runSlowLoop 中完成）
         bufState.prospectiveAncSlider.tick(/* <- */);
 
         // 前瞻梯度（prospective）：推理朝未来，校准朝过去 G_PAST_1；anc_seq=[Susp, Prec]；传承 prospectiveTC

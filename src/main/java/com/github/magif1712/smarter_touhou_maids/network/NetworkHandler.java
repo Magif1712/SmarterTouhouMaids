@@ -1,11 +1,7 @@
 package com.github.magif1712.smarter_touhou_maids.network;
 
 import com.github.magif1712.smarter_touhou_maids.SmarterTouhouMaids;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.network.ClientboundMaidDataSyncPacket;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.network.ClientboundPossessionSyncPacket;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.effector.network.ServerboundActionIntentPacket;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.network.ServerboundPossessionRequestPacket;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.network.ServerboundSetPossessionEnabledPacket;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.AgentNetwork;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ClientboundAiModeSyncPacket;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ClientboundParamSyncPacket;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ClientboundSmarterModeSyncPacket;
@@ -22,6 +18,8 @@ import net.minecraftforge.network.simple.SimpleChannel;
  * 编码铁律:
  * 1. 使用固定的协议版本 "1"。
  * 2. 所有数据包使用固定的、递增的 int 索引注册。
+ * 3. 各代理分支的网络包经各包自己的 {@code AgentNetwork.registerPackets} 分段注册
+ *    （possession/effector 包是分支私有模式；同版本 client/server 索引一致即可）。
  */
 public final class NetworkHandler {
     private static final String PROTOCOL_VERSION = "1";
@@ -34,13 +32,14 @@ public final class NetworkHandler {
     );
 
     public static void init() {
+        // === 代理分支索引段（各包自带贡献，依次分配）===
         int index = 0;
-        // 编码铁律: 所有 handle 方法必须在内部使用 enqueueWork 将逻辑提交到主线程。
-        INSTANCE.registerMessage(index++, ServerboundPossessionRequestPacket.class, ServerboundPossessionRequestPacket::encode, ServerboundPossessionRequestPacket::decode, ServerboundPossessionRequestPacket::handle);
-        INSTANCE.registerMessage(index++, ClientboundPossessionSyncPacket.class, ClientboundPossessionSyncPacket::encode, ClientboundPossessionSyncPacket::decode, ClientboundPossessionSyncPacket::handle);
-        INSTANCE.registerMessage(index++, ServerboundSetPossessionEnabledPacket.class, ServerboundSetPossessionEnabledPacket::encode, ServerboundSetPossessionEnabledPacket::decode, ServerboundSetPossessionEnabledPacket::handle);
-        INSTANCE.registerMessage(index++, ClientboundMaidDataSyncPacket.class, ClientboundMaidDataSyncPacket::encode, ClientboundMaidDataSyncPacket::decode, ClientboundMaidDataSyncPacket::handle);
+        // 新代理（reflex_arc_system_agent）：4 个 possession 包 + ActionIntent（索引 0-4）
+        index = AgentNetwork.registerPackets(INSTANCE, index);
+        // 原初代理（reflex_arc_system_agent_original）：位平面链同构包（索引 5-9）
+        index = com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent_original.AgentNetwork.registerPackets(INSTANCE, index);
 
+        // === smarter 通用包（与代理无关）===
         INSTANCE.registerMessage(index++, ServerboundSetSmarterModePacket.class,
                 ServerboundSetSmarterModePacket::encode,
                 ServerboundSetSmarterModePacket::decode,
@@ -62,12 +61,6 @@ public final class NetworkHandler {
                 ClientboundParamSyncPacket::encode,
                 ClientboundParamSyncPacket::decode,
                 ClientboundParamSyncPacket::handle);
-
-        // 效应器：客户端 → 服务端 发送解码后的操作要求
-        INSTANCE.registerMessage(index++, ServerboundActionIntentPacket.class,
-                ServerboundActionIntentPacket::encode,
-                ServerboundActionIntentPacket::decode,
-                ServerboundActionIntentPacket::handle);
 
         // AI 模式选择：客户端 → 服务端 设置某层 registry 的选中 entry
         INSTANCE.registerMessage(index++, ServerboundSetAiModePacket.class,

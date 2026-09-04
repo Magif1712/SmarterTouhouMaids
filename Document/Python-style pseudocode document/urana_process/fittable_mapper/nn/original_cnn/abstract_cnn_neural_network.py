@@ -40,10 +40,35 @@ class AbstractCnnNeuralNetwork(INeuralNetwork):
         self.target = CnnTargetVector(outputSize)
         # 构造期一次性刷新 idx/w（非热路径，stream 0 + 同步）。
         # 新建（PCG 随机 p）与 loadFromFile 路径都需要：idx/w 是 p 的派生缓存，未刷新则前向读垃圾值。
-        cnnRefreshCache(self.networkData.getHyperparameters(), 0)
+        cnnRefreshCache(self.networkData.getHyperparameters(), 0, "->")
 
     def encodingProfile(self):
         return CNN_PROFILE
+
+    # ==================== 感觉载体契约（CNN 家族：FloatVector RGB float）====================
+
+    # CNN 家族的感觉载体是 FloatVector（浮点激活网络）。
+    # 载体类型知识留在本家族，上层经 ai 链拿产品（缓冲实例），无类型开关。
+    def newFeelingBuffer(self, feelingLength):
+        return FloatVector(feelingLength)
+
+    # CNN 家族的视觉解码器：RGB float（通道平面式，w*h*3 元素）。
+    def newVisionEncoder(self): ...
+
+    # ==================== 行为载体契约（CNN 家族：FloatVector + float→bit 转换）====================
+
+    # CNN 家族的行为载体是 FloatVector（浮点激活网络）。
+    # 使用 mapped pinned memory（零拷贝），主线程读取零 CUDA 调用，不 flush WDDM 命令缓冲。
+    def newBehaviorBuffer(self, behaviorLength):
+        return FloatVector.mapped(behaviorLength)
+
+    # CNN 行为读取：FloatVector → float[] → 阈值化 → bit-packed int[]。
+    # float→bit 转换是 CNN 家族的内部模式（σ(z)≥0.5 → bit 1，即 sigmoid 判决边界），
+    # 与 BNN 的 sign 函数判决对齐——effector 收到统一 bit-packed int[]，接口零改动。
+    # 零 CUDA 调用：纯 host memcpy 读 mapped pinned memory，不 flush WDDM 命令缓冲。
+    def readBehaviorTo(self, behaviorBuffer, dst, stream): ...
+
+    # ==================== CnnIO 区域读写 ====================
 
     def copyToInput(self, _: "<-", region, src, stream):
         inputVec = self.io.getInput().getVector()
@@ -61,18 +86,18 @@ class AbstractCnnNeuralNetwork(INeuralNetwork):
 
     def copyToInputFromLong(self, _: "<-", region, value, stream): ...
 
-    def forward(self, x, stream, _: "->", y, fw_trace_for_bw):
+    def forward(self, x, stream, _: "->", y, fwTraceForBw):
         cnnForwardLayer(
             self.io.getA0(), self.networkData.getHyperparameters(), stream, "->",
-            self.io.getA1(), fw_trace_for_bw)
+            self.io.getA1(), fwTraceForBw)
 
-    def backward(self, fw_trace_for_bw, t, stream, _: "->", buf_tC, buf_hp):
+    def backward(self, fwTraceForBw, t, stream, _: "->", bufTc, bufHp):
         hp = self.networkData.getHyperparameters()
         cnnBackwardLayer(
-            fw_trace_for_bw, hp, self.target.getVector(),
+            fwTraceForBw, hp, self.target.getVector(),
             stream, "->",
             self.io.getA0(), self.gradients.getDzWorkspace(), self.gradients.getInputLayerGradient().getVector(),
-            buf_tC, buf_hp, CNN_LEARNING_RATE)
+            bufTc, bufHp, CNN_LEARNING_RATE)
 
     def getHyperparameters(self):
         return self.networkData.getHyperparameters()

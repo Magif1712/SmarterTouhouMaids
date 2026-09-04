@@ -1,6 +1,7 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession;
 
 import com.github.magif1712.smarter_touhou_maids.SmarterTouhouMaids;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ReflexArcSystemAgentFactory;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.config.PossessionConfig;
 import com.github.magif1712.smarter_touhou_maids.network.NetworkHandler;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.possession.network.ClientboundMaidDataSyncPacket;
@@ -69,6 +70,14 @@ public class ServerPossessionManager {
         }
 
         if (!isOwner(player, maid) || !isPossessionEnabled(maid) || player.distanceToSqr(maid) > 64.0) {
+            return;
+        }
+
+        // 分支守卫（多代理共存，D4 形态修正）：maid 选中的 agent != 本分支时拒绝——
+        // possession 是各代理分支的私有模式副本，只有持有该 maid 的分支可附身。
+        // 客户端 requestPossession 已守卫，此处为服务端兜底（防错配/直发包）。
+        if (!ReflexArcSystemAgentFactory.AGENT_ID.equals(MaidSmarterState.getAgentId(maid))) {
+            LOGGER.warn("[SmarterTouhouMaids] Possession request rejected: maid {} agent is not this branch", maidUUID);
             return;
         }
 

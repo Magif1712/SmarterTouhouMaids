@@ -4,7 +4,9 @@ import com.github.magif1712.smarter_touhou_maids.SmarterTouhouMaids;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.UranaProcessRegistryIds;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.FittableMapperFactory;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.FittableMapperRegistryIds;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.bnn_mapper.BnnMapperModes;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.nn.NnFactory;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.nn.original_bnn.BnnNnModes;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.nn.original_cnn.CnnNnModes;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.original_mapper.OriginalMapperModes;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.Registry;
@@ -51,6 +53,9 @@ public class UranaProcessRegistration {
         ResourceLocation mapperDefault = new ResourceLocation(modId, OriginalMapperModes.MAPPER_ID);
         Registry<FittableMapperFactory> mapperRegistry = new Registry<>(UranaProcessRegistryIds.MAPPER, mapperDefault);
         mapperRegistry.register(OriginalMapperModes.mapperEntry(modId));
+        // bnn_mapper（BNN 载体，BoolVector）作为可选项注册——默认仍是 original_mapper，
+        // 测试时在 GUI 切换 mapper 到 bnn_mapper（配合 nn 切换到 bnn）验证 GPU 占用假说。
+        mapperRegistry.register(BnnMapperModes.mapperEntry(modId));
         RegistryManager.INSTANCE.register(mapperRegistry);
 
         // === 创建 NnRegistry（id=NN，由 mapper 子层定义）===
@@ -59,6 +64,9 @@ public class UranaProcessRegistration {
         ResourceLocation nnDefault = new ResourceLocation(modId, CnnNnModes.NN_ID);
         Registry<NnFactory> nnRegistry = new Registry<>(FittableMapperRegistryIds.NN, nnDefault);
         nnRegistry.register(CnnNnModes.nnEntry(modId));
+        // bnn（原初代理同款 BNN，位运算）作为可选项注册——默认仍是 cnn，
+        // 测试时在 GUI 切换 nn 到 bnn（配合 mapper 切换到 bnn_mapper）。
+        nnRegistry.register(BnnNnModes.nnEntry(modId));
         RegistryManager.INSTANCE.register(nnRegistry);
     }
 }

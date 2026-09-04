@@ -1,9 +1,11 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai;
 
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.VectorBase;
+import com.github.magif1712.smarter_touhou_maids.core.execution.RefreshRequest;
 import com.github.magif1712.smarter_touhou_maids.core.execution.event.Event;
 import com.github.magif1712.smarter_touhou_maids.core.execution.MappedGenerationBuffer;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.SaveSlot;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.VisionEncoder;
 
 /**
  * AI 系统的顶层抽象边界（外周契约）。
@@ -43,6 +45,19 @@ public interface IAiSystem extends AutoCloseable {
     void awaken(VectorBase feelingBuffer, Event visionEvent, MappedGenerationBuffer behaviorChannel);
 
     /**
+     * 注入感觉刷新请求（拉模型，可选能力）。
+     * <p>
+     * 支持按需感觉的 ai Override 本方法存下请求：每轮开头 request，感受器 consume 后才编码。
+     * 不支持的 ai 走默认实现（忽略请求，感受器保持每帧编码的推模型）——契约向后兼容，
+     * 旧实现零改动。agent 在 awaken 后调用。
+     *
+     * @param feelingRefresh 感觉刷新请求（agent 拥有，纯 host 对象）。
+     */
+    default void setRefreshRequest(RefreshRequest feelingRefresh) {
+        // 默认无操作：不支持拉模型的 ai 忽略刷新请求
+    }
+
+    /**
      * 关闭 ai，停止运转并释放所有资源。
      */
     void shutdown();
@@ -73,4 +88,42 @@ public interface IAiSystem extends AutoCloseable {
      * ai 所需的行为输出尺寸（外周据此创建 MappedGenerationBuffer）。
      */
     int behaviorSize();
+
+    /**
+     * 创建感觉缓冲区（可选能力，default 委托链的 ai 段）。
+     * <p>
+     * 载体契约由 ai 链内部（process→mapper→nn）定义，ai 只透传——agent 据此创建共享
+     * feelingBuffer（载体类型知识留在下层，agent 无类型开关）。未发布的 ai 走默认（抛异常），
+     * agent 组装时即 fail-fast。
+     */
+    default VectorBase newFeelingBuffer() {
+        throw new UnsupportedOperationException("此 ai 未发布感觉载体契约（newFeelingBuffer）");
+    }
+
+    /**
+     * 创建视觉解码器（可选能力，default 委托链的 ai 段）。
+     * <p>
+     * 解码器由 ai 链内部（process→mapper→nn）提供（与载体配对），ai 只透传。
+     * agent 取得后注入感受器（ISensor.setVisionEncoder），感受器采集后按需调用。
+     */
+    default VisionEncoder newVisionEncoder() {
+        throw new UnsupportedOperationException("此 ai 未发布视觉解码器（newVisionEncoder）");
+    }
+
+    /**
+     * 创建行为缓冲区（可选能力，default 委托链的 ai 段）。
+     * 载体契约由 ai 链内部定义，ai 只透传——agent 据此创建 behaviorChannel 的 buffer。
+     */
+    default VectorBase newBehaviorBuffer() {
+        throw new UnsupportedOperationException("此 ai 未发布行为载体契约（newBehaviorBuffer）");
+    }
+
+    /**
+     * 行为读取（可选能力，default 委托链的 ai 段）。
+     * 把行为缓冲区载体数据读出为 int[]（effector 期望的 bit-packed 格式）。
+     * agent 调此方法读 behavior 到 scratch，交效应器解码。
+     */
+    default void readBehaviorTo(VectorBase behaviorBuffer, int[] dst, long stream) {
+        throw new UnsupportedOperationException("此 ai 未发布行为读取契约（readBehaviorTo）");
+    }
 }

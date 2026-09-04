@@ -340,6 +340,214 @@ extern "C"
         JNI_CATCH_TRANSLATE(env, "_copyRegionFromHostInt")
     }
 
+    // ===================================================================
+    // Vector<float> 接口（与 Vector<int> 对称：CNN 浮点权重/激活/梯度）
+    // ===================================================================
+
+    JNIEXPORT jlong JNICALL JNI_METHOD(core_containers_vector, VectorNative, _1createVectorFloat)(JNIEnv *env, jclass)
+    {
+        try
+        {
+            auto *vec = VectorCreateFloat();
+            return reinterpret_cast<jlong>(vec);
+        }
+        JNI_CATCH_TRANSLATE(env, "_createVectorFloat")
+        return 0;
+    }
+
+    JNIEXPORT void JNICALL JNI_METHOD(core_containers_vector, VectorNative, _1allocateFloat)(JNIEnv *env, jclass, jlong handle, jint size)
+    {
+        try
+        {
+            auto *vec = reinterpret_cast<Vector<float> *>(handle);
+            if (vec)
+                VectorAllocateFloat(vec, static_cast<size_t>(size));
+        }
+        JNI_CATCH_TRANSLATE(env, "_allocateFloat")
+    }
+
+    JNIEXPORT void JNICALL JNI_METHOD(core_containers_vector, VectorNative, _1deleteVectorFloat)(JNIEnv *env, jclass, jlong handle)
+    {
+        try
+        {
+            auto *vec = reinterpret_cast<Vector<float> *>(handle);
+            if (vec)
+                VectorDeleteFloat(vec);
+        }
+        JNI_CATCH_TRANSLATE(env, "_deleteVectorFloat")
+    }
+
+    JNIEXPORT void JNICALL JNI_METHOD(core_containers_vector, VectorNative, _1copyFromHostFloat)(JNIEnv *env, jclass, jlong handle, jfloatArray data, jint count, jlong stream_handle)
+    {
+        try
+        {
+            auto *vec = reinterpret_cast<Vector<float> *>(handle);
+            if (!vec || !data)
+                return;
+
+            jfloat *j_data = env->GetFloatArrayElements(data, nullptr);
+            VectorCopyFromHostFloat(vec, reinterpret_cast<const float *>(j_data), static_cast<size_t>(count), reinterpret_cast<cudaStream_t>(stream_handle));
+            env->ReleaseFloatArrayElements(data, j_data, JNI_ABORT);
+        }
+        JNI_CATCH_TRANSLATE(env, "_copyFromHostFloat")
+    }
+
+    JNIEXPORT void JNICALL JNI_METHOD(core_containers_vector, VectorNative, _1copyToHostFloat)(JNIEnv *env, jclass, jlong handle, jfloatArray data, jint count)
+    {
+        try
+        {
+            auto *vec = reinterpret_cast<Vector<float> *>(handle);
+            if (!vec || !data)
+                return;
+
+            jfloat *j_data = env->GetFloatArrayElements(data, nullptr);
+            VectorCopyToHostFloat(vec, reinterpret_cast<float *>(j_data), static_cast<size_t>(count));
+            env->ReleaseFloatArrayElements(data, j_data, 0);
+        }
+        JNI_CATCH_TRANSLATE(env, "_copyToHostFloat")
+    }
+
+    JNIEXPORT void JNICALL JNI_METHOD(core_containers_vector, VectorNative, _1saveFloat)(JNIEnv *env, jclass, jlong handle, jstring filename)
+    {
+        try
+        {
+            auto *vec = reinterpret_cast<Vector<float> *>(handle);
+            if (!vec || !filename)
+                return;
+
+            std::filesystem::path path = jstringToPath(env, filename);
+            VectorSaveFloat(vec, path);
+        }
+        JNI_CATCH_TRANSLATE(env, "_saveFloat")
+    }
+
+    JNIEXPORT void JNICALL JNI_METHOD(core_containers_vector, VectorNative, _1loadFromFileFloat)(JNIEnv *env, jclass, jlong handle, jstring filename)
+    {
+        try
+        {
+            auto *vec = reinterpret_cast<Vector<float> *>(handle);
+            if (!vec || !filename)
+                return;
+
+            std::filesystem::path path = jstringToPath(env, filename);
+            VectorLoadFromFileFloat(vec, path);
+        }
+        JNI_CATCH_TRANSLATE(env, "_loadFromFileFloat")
+    }
+
+    JNIEXPORT jint JNICALL JNI_METHOD(core_containers_vector, VectorNative, _1getSizeFloat)(JNIEnv *env, jclass, jlong handle)
+    {
+        try
+        {
+            auto *vec = reinterpret_cast<Vector<float> *>(handle);
+            return static_cast<jint>(VectorGetSizeFloat(vec));
+        }
+        JNI_CATCH_TRANSLATE(env, "_getSizeFloat")
+        return 0;
+    }
+
+    JNIEXPORT void JNICALL JNI_METHOD(core_containers_vector, VectorNative, _1copyRegionFromFloat)(JNIEnv *env, jclass, jlong dst_handle, jlong dst_offset, jlong src_handle, jlong src_offset, jlong count, jlong stream_handle)
+    {
+        try
+        {
+            auto *dst = reinterpret_cast<Vector<float> *>(dst_handle);
+            auto *src = reinterpret_cast<Vector<float> *>(src_handle);
+            if (dst && src)
+            {
+                VectorCopyRegionFromFloat(dst, static_cast<size_t>(dst_offset), src, static_cast<size_t>(src_offset), static_cast<size_t>(count), reinterpret_cast<cudaStream_t>(stream_handle));
+            }
+        }
+        JNI_CATCH_TRANSLATE(env, "_copyRegionFromFloat")
+    }
+
+    JNIEXPORT void JNICALL JNI_METHOD(core_containers_vector, VectorNative, _1setRegionFloat)(JNIEnv *env, jclass, jlong dst_handle, jlong dest_offset, jlong src_handle, jlong stream_handle)
+    {
+        try
+        {
+            auto *dst = reinterpret_cast<Vector<float> *>(dst_handle);
+            auto *src = reinterpret_cast<Vector<float> *>(src_handle);
+            if (dst && src)
+            {
+                VectorSetRegionFloat(dst, static_cast<size_t>(dest_offset), src, reinterpret_cast<cudaStream_t>(stream_handle));
+            }
+        }
+        JNI_CATCH_TRANSLATE(env, "_setRegionFloat")
+    }
+
+    JNIEXPORT void JNICALL JNI_METHOD(core_containers_vector, VectorNative, _1copyRegionFromHostFloat)(JNIEnv *env, jclass, jlong dst_handle, jlong dst_offset, jfloatArray src_array, jlong count, jlong stream_handle)
+    {
+        try
+        {
+            auto *dst = reinterpret_cast<Vector<float> *>(dst_handle);
+            if (!dst || !src_array)
+                return;
+
+            jfloat *src_ptr = env->GetFloatArrayElements(src_array, nullptr);
+            if (src_ptr == nullptr)
+                return; // 内存不足
+
+            VectorCopyRegionFromHostFloat(dst, static_cast<size_t>(dst_offset), reinterpret_cast<const float *>(src_ptr), static_cast<size_t>(count), reinterpret_cast<cudaStream_t>(stream_handle));
+
+            env->ReleaseFloatArrayElements(src_array, src_ptr, JNI_ABORT);
+        }
+        JNI_CATCH_TRANSLATE(env, "_copyRegionFromHostFloat")
+    }
+
+    JNIEXPORT void JNICALL JNI_METHOD(core_containers_vector, VectorNative, _1multiplyByScalarFloat)(JNIEnv *env, jclass, jlong handle, jfloat scalar, jlong offset, jlong length, jlong stream_handle)
+    {
+        try
+        {
+            auto *vec = reinterpret_cast<Vector<float> *>(handle);
+            if (vec)
+            {
+                VectorMultiplyByScalarFloat(vec, static_cast<float>(scalar), static_cast<size_t>(offset), static_cast<size_t>(length), reinterpret_cast<cudaStream_t>(stream_handle));
+            }
+        }
+        JNI_CATCH_TRANSLATE(env, "_multiplyByScalarFloat")
+    }
+
+    // 用 PCG 随机填充浮点向量，元素 ∈ [0, bound)（CNN 权重初始化）。同步：bridge 内 cudaStreamSynchronize(0)。
+    JNIEXPORT void JNICALL JNI_METHOD(core_containers_vector, VectorNative, _1fillRandomFloat)(JNIEnv *env, jclass, jlong handle, jfloat bound, jlong seed)
+    {
+        try
+        {
+            auto *vec = reinterpret_cast<Vector<float> *>(handle);
+            if (vec)
+            {
+                VectorFillRandomFloat(vec, static_cast<float>(bound), static_cast<uint64_t>(seed));
+            }
+        }
+        JNI_CATCH_TRANSLATE(env, "_fillRandomFloat")
+    }
+
+    // 分配为 host mapped pinned memory（zero-copy）。GPU 经 device 视图写 = 写 host 内存，host 直接读。
+    JNIEXPORT void JNICALL JNI_METHOD(core_containers_vector, VectorNative, _1allocateFloatMapped)(JNIEnv *env, jclass, jlong handle, jint size)
+    {
+        try
+        {
+            auto *vec = reinterpret_cast<Vector<float> *>(handle);
+            if (vec)
+                VectorAllocateFloatMapped(vec, static_cast<size_t>(size));
+        }
+        JNI_CATCH_TRANSLATE(env, "_allocateFloatMapped")
+    }
+
+    // 从 mapped host 内存读取到 Java float[]（纯 host memcpy，零 CUDA 调用，不 flush WDDM 命令缓冲）。
+    JNIEXPORT void JNICALL JNI_METHOD(core_containers_vector, VectorNative, _1readMappedFloat)(JNIEnv *env, jclass, jlong handle, jfloatArray data, jint count)
+    {
+        try
+        {
+            auto *vec = reinterpret_cast<Vector<float> *>(handle);
+            if (!vec || !data)
+                return;
+
+            jfloat *j_data = env->GetFloatArrayElements(data, nullptr);
+            VectorReadMappedFloat(vec, reinterpret_cast<float *>(j_data), static_cast<size_t>(count));
+            env->ReleaseFloatArrayElements(data, j_data, 0);
+        }
+        JNI_CATCH_TRANSLATE(env, "_readMappedFloat")
+    }
+
     JNIEXPORT void JNICALL JNI_METHOD(core_containers_vector, VectorNative, _1scatterBits)(JNIEnv *env, jclass, jlong srcHandle, jlong dstHandle, jlong pHandle)
     {
         try

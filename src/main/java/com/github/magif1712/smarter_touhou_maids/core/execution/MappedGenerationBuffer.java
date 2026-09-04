@@ -1,6 +1,7 @@
 package com.github.magif1712.smarter_touhou_maids.core.execution;
 
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.BoolVector;
+import com.github.magif1712.smarter_touhou_maids.core.containers.vector.VectorBase;
 import com.github.magif1712.smarter_touhou_maids.core.execution.counter.MappedCounter;
 
 /**
@@ -34,14 +35,27 @@ import com.github.magif1712.smarter_touhou_maids.core.execution.counter.MappedCo
  */
 public final class MappedGenerationBuffer implements AutoCloseable {
 
-    private final BoolVector buffer;
+    private final VectorBase buffer;
     private final MappedCounter generation;
 
     /**
+     * 旧构造（原初代理兼容）：创建 BoolVector mapped host 内存。
+     *
      * @param bits buffer 位长度。
      */
     public MappedGenerationBuffer(int bits) {
         this.buffer = BoolVector.mapped(bits);
+        this.generation = new MappedCounter();
+    }
+
+    /**
+     * 新构造（载体契约注入）：接受外部创建的 VectorBase buffer（由 ai 链的 nn 家族创建，
+     * 载体类型由家族决定——BoolVector/FloatVector/…）。generation 计数器始终 mapped（零拷贝读取）。
+     *
+     * @param buffer 外部创建的行为缓冲区（载体类型由 ai 链决定）。
+     */
+    public MappedGenerationBuffer(VectorBase buffer) {
+        this.buffer = buffer;
         this.generation = new MappedCounter();
     }
 
@@ -50,9 +64,10 @@ public final class MappedGenerationBuffer implements AutoCloseable {
     /**
      * 返回 buffer 供 producer 写入。
      * <p>
-     * buffer 为 host mapped pinned memory：GPU 经 device 视图写 = 写 host 内存（零拷贝）。
+     * BoolVector mapped 版：GPU 经 device 视图写 = 写 host 内存（零拷贝）。
+     * FloatVector 版：GPU 写显存，consumer 需 sync D2H 读（由 ai.readBehaviorTo 处理）。
      */
-    public BoolVector getBuffer() {
+    public VectorBase getBuffer() {
         return buffer;
     }
 
@@ -86,7 +101,10 @@ public final class MappedGenerationBuffer implements AutoCloseable {
      * @param bitPackedData 接收数据的 int[]（LSB-first bit 排布），长度须 >= buffer 位长 / 32。
      */
     public void readTo(int[] bitPackedData) {
-        buffer.readMappedToJava(bitPackedData);
+        if (!(buffer instanceof BoolVector bv)) {
+            throw new IllegalStateException("readTo(int[]) only supports BoolVector mapped buffer; use ai.readBehaviorTo() for other carriers");
+        }
+        bv.readMappedToJava(bitPackedData);
     }
 
     @Override

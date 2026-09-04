@@ -62,3 +62,13 @@ void fillRandomBits(Vector<bool>& vec, uint64_t seed, cudaStream_t stream = 0);
  * @param stream  CUDA 流。
  */
 void fillRandomInts(Vector<int>& vec, int maxVal, uint64_t seed, cudaStream_t stream = 0);
+
+/**
+ * @brief 用 PCG 哈希随机填充浮点向量，每个元素 ∈ [0, bound)。
+ *        用于 CNN 权重初始化（与 BNN 同理——零权重→零输出→零梯度→权重永不更新的零吸引子）。
+ * @param vec    目标浮点向量（须已分配）。
+ * @param bound  上界（独占）；bound<=0 时填 0。
+ * @param seed   64 位种子。
+ * @param stream CUDA 流。
+ */
+void fillRandomFloats(Vector<float>& vec, float bound, uint64_t seed, cudaStream_t stream = 0);

@@ -14,6 +14,8 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
  * 依赖方向：reflex_arc（下层）→ smarter/agent（上层抽象 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.MaidSource}），
  * 而非通用层反向依赖具体实现（真善美第3条：上层依赖抽象，下层提供实现并主动注入）。
  * <p>
+ * 多代理共存（D4 形态修正）：各分支各注入一份（addMaidSource），服务层遍历取第一个非 null——
+ * 同一时刻玩家只附身一个 maid，只有持有该 maid 的分支来源返回非 null。
  * 换非附身 agent 时，新的 sensor 子系统提供自己的 MaidSource 实现在各自 client setup 注入，
  * SmarterClientService 零改动。
  */
@@ -21,7 +23,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 public class MaidSourceBinding {
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
-        SmarterClientService.INSTANCE.setMaidSource(
+        SmarterClientService.INSTANCE.addMaidSource(
                 () -> PossessionManager.INSTANCE.getPossessedMaid());
     }
 }

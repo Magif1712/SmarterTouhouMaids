@@ -2,6 +2,7 @@ package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_
 
 import com.github.magif1712.smarter_touhou_maids.core.containers.domain.Span;
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.VectorBase;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.VisionEncoder;
 
 /**
  * 神经网络机械级接口：把"urana 可换 nn"这个不实在约束，实在化为一组方法签名（真善美第4条）。
@@ -93,4 +94,58 @@ public interface INeuralNetwork extends AutoCloseable {
     VectorBase loadGradientVector(String path);
 
     NnEncodingProfile encodingProfile();
+
+    /**
+     * 感觉载体契约（可选能力）：创建本 nn 家族的感觉缓冲区。
+     * <p>
+     * 载体类型由 nn 家族定义（BNN→BoolVector，CNN→FloatVector），长度由上层 domain 传入——
+     * 载体类型知识不离开 nn 家族，上层（agent 经 ai/process/mapper 链）只拿到产品（缓冲实例），
+     * 无类型开关、无平行布尔量（真善美第2条：载体是 nn 家族的模式，不是 ai 链各层的模式）。
+     * 经 mapper→process→ai 逐层 default 委托上浮（镜像 {@link #encodingProfile()} 的 profile 路径）。
+     * <p>
+     * 未发布的家族走默认（抛异常）——上层组装非法组合时即 fail-fast。
+     *
+     * @param feelingLength 感觉区长度（载体单位：BoolVector=bit，FloatVector=元素；来自上层 domain 的 feeling span）。
+     */
+    default VectorBase newFeelingBuffer(int feelingLength) {
+        throw new UnsupportedOperationException("此 nn 家族未发布感觉载体契约（newFeelingBuffer）");
+    }
+
+    /**
+     * 视觉解码器契约（可选能力）：快照纹理 → 本家族感觉缓冲的解码器。
+     * <p>
+     * 与 {@link #newFeelingBuffer} 配对：定义载体者同时提供解码器（fittable_mapper 层契约，
+     * 实现住各家族包），非法组合结构上不可表达。经 mapper→process→ai 逐层 default 委托上浮。
+     */
+    default VisionEncoder newVisionEncoder() {
+        throw new UnsupportedOperationException("此 nn 家族未发布视觉解码器（newVisionEncoder）");
+    }
+
+    /**
+     * 行为载体契约（可选能力）：创建本 nn 家族的行为缓冲区。
+     * <p>
+     * 与 {@link #newFeelingBuffer} 对称：行为输出侧的载体也由 nn 家族定义
+     * （BNN→BoolVector 位平面，CNN→FloatVector 浮点），经 mapper→process→ai 逐层 default 委托上浮。
+     * agent 据此创建 behaviorChannel 的 buffer（无类型开关）。
+     *
+     * @param behaviorLength 行为区长度（载体单位：BoolVector=bit，FloatVector=元素）。
+     */
+    default VectorBase newBehaviorBuffer(int behaviorLength) {
+        throw new UnsupportedOperationException("此 nn 家族未发布行为载体契约（newBehaviorBuffer）");
+    }
+
+    /**
+     * 行为读取契约（可选能力）：把行为缓冲区的载体数据读出到 int[]（effector 期望的 bit-packed 格式）。
+     * <p>
+     * 载体类型知识留在本家族：BNN 直接从 mapped host 内存读 int[]（零拷贝）；
+     * CNN 读 float[] 后阈值化为 bit 再打包为 int[]（float→bit 转换是 CNN 家族的内部模式）。
+     * 上层（agent）只拿到统一的 int[] 格式，effector 接口零改动（真善美第2条）。
+     *
+     * @param behaviorBuffer 行为缓冲区（由 {@link #newBehaviorBuffer} 创建）。
+     * @param dst           接收 bit-packed 数据的 int[]（LSB-first，长度 >= ceil(behaviorLen/32)）。
+     * @param stream        CUDA 流（同步用；mapped 模式可忽略，非 mapped 需 stream-aware D2H）。
+     */
+    default void readBehaviorTo(VectorBase behaviorBuffer, int[] dst, long stream) {
+        throw new UnsupportedOperationException("此 nn 家族未发布行为读取契约（readBehaviorTo）");
+    }
 }
