@@ -13,7 +13,7 @@ import net.minecraft.resources.ResourceLocation;
  * <ul>
  *   <li>process → {@code ProcessAiRegistryIds.PROCESS}（AI 层决定）</li>
  *   <li>mapper → {@code UranaProcessRegistryIds.MAPPER}（process 层决定）</li>
- *   <li>nn → {@code FittableMapperRegistryIds.NN}（mapper 层决定）</li>
+ *   <li>nn → {@code FittableMapperRegistryIds.ORIGINAL_MAPPER_NN} / {@code BNN_MAPPER_NN}（per-mapper NN registry，mapper 层决定）</li>
  *   <li>nn_legacy → {@code LegacyRegistryIds.NN_LEGACY}（旧版层决定）</li>
  * </ul>
  * 附属模组在自己的包内定义自己的层级 id，不需修改本类——只要附属 entry 的 subRegistryId

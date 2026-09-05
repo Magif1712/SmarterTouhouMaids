@@ -20,7 +20,7 @@ import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_a
  *       BoolVector 无此重载，故走 {@link BoolVector#copyRegionFromHost}（host→device bit 级路径）。</li>
  *   <li>{@code assembleX} 的 dt（long）：FloatVector 有 {@code setRegion(Span, long, long)} 重载；
  *       BoolVector 无此重载，故拆成 64 个 boolean 走 {@link BoolVector#copyRegionFromHost}
- *       （与 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.nn.original_bnn.AbstractBnnNeuralNetwork#copyToInputFromLong}
+ *       （与 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.nn.bnn.AbstractBnnNeuralNetwork#copyToInputFromLong}
  *       同款 bit 编码路径）。</li>
  *   <li>C/F/B（BoolVector）：走 {@link BoolVector#setRegion(Span, BoolVector, long)}（device→device）。</li>
  * </ul>
@@ -186,7 +186,7 @@ public class BnnMapper implements FittableMapper, AutoCloseable {
 
     @Override
     public VisionEncoder newVisionEncoder() {
-        return nn.newVisionEncoder();
+        return new BitplaneEncoder();
     }
 
     @Override

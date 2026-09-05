@@ -12,8 +12,9 @@ import net.minecraft.resources.ResourceLocation;
  * 它的 entry 由 {@code AiModeDefaults.registerDefaults()} 经 {@link #mapperEntry(String)} 取用并注册，
  * 同时把 MapperRegistry 的默认 id 指向 {@link #MAPPER_ID}。
  * <p>
- * <b>nn 是 mapper 的附庸</b>（用户设计）：本 entry 的 subRegistryId 指向 {@link RegistryIds#NN}（新版），
- * 表示"选了 urana mapper 后还要选 nn"——nn registry 在 mapper 之下，由 mapper entry 带出。
+ * <b>nn 是 mapper 的附庸</b>（用户设计）：本 entry 的 subRegistryId 指向
+ * {@link FittableMapperRegistryIds#ORIGINAL_MAPPER_NN}（per-mapper NN registry，只含 CNN），
+ * 表示"选了 original_mapper 后只能选 CNN"——NN 选项与 mapper 载体天然配对。
  * <p>
  * 设计原则（真善美）：
  * <ul>
@@ -36,13 +37,13 @@ public final class OriginalMapperModes {
      * 构造 urana mapper 向 MapperRegistry 贡献的 entry。
      *
      * @param modId 模组 id（用于构造 ResourceLocation 与显示名 key）。
-     * @return 非叶子 entry（subRegistryId=NN，选了 mapper 后还要选 nn）。
+     * @return 非叶子 entry（subRegistryId=ORIGINAL_MAPPER_NN，选了 original_mapper 后只能选 CNN）。
      */
     public static RegistryEntry<FittableMapperFactory> mapperEntry(String modId) {
         return new RegistryEntry<>(
                 new ResourceLocation(modId, MAPPER_ID),
                 "mode." + modId + ".mapper.original_mapper",
                 new OriginalMapperFactory(),
-                FittableMapperRegistryIds.NN); // mapper 之下还要选 nn（nn 是 mapper 的附庸）
+                FittableMapperRegistryIds.ORIGINAL_MAPPER_NN); // original_mapper 的专属 NN registry（只含 CNN）
     }
 }

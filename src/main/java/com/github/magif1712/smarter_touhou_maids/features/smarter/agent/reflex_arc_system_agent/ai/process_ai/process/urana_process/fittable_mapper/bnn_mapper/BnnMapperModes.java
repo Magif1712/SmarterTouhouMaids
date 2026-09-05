@@ -13,10 +13,11 @@ import net.minecraft.resources.ResourceLocation;
  * （original_mapper，FloatVector 载体）并列，供 GPU 占用对照测试切换。
  * <p>
  * <b>非默认</b>：默认 mapper 仍是 original_mapper；本 entry 仅注册为可选项，
- * 测试时在 GUI 手动切换 mapper 到 {@link #MAPPER_ID}（并配合 nn 切换到 bnn）。
+ * 测试时在 GUI 手动切换 mapper 到 {@link #MAPPER_ID}（NN 自动切换到 BNN）。
  * <p>
  * <b>nn 是 mapper 的附庸</b>（用户设计）：本 entry 的 subRegistryId 指向
- * {@link FittableMapperRegistryIds#NN}，表示"选了 bnn_mapper 后还要选 nn"。
+ * {@link FittableMapperRegistryIds#BNN_MAPPER_NN}（per-mapper NN registry，只含 BNN），
+ * 表示"选了 bnn_mapper 后只能选 BNN"——NN 选项与 mapper 载体天然配对。
  * <p>
  * 设计原则（真善美）：
  * <ul>
@@ -38,13 +39,13 @@ public final class BnnMapperModes {
      * 构造 bnn_mapper 向 MapperRegistry 贡献的 entry。
      *
      * @param modId 模组 id（用于构造 ResourceLocation 与显示名 key）。
-     * @return 非叶子 entry（subRegistryId=NN，选了 mapper 后还要选 nn）。
+     * @return 非叶子 entry（subRegistryId=BNN_MAPPER_NN，选了 bnn_mapper 后只能选 BNN）。
      */
     public static RegistryEntry<FittableMapperFactory> mapperEntry(String modId) {
         return new RegistryEntry<>(
                 new ResourceLocation(modId, MAPPER_ID),
                 "mode." + modId + ".mapper.bnn_mapper",
                 new BnnMapperFactory(),
-                FittableMapperRegistryIds.NN); // mapper 之下还要选 nn（nn 是 mapper 的附庸）
+                FittableMapperRegistryIds.BNN_MAPPER_NN); // bnn_mapper 的专属 NN registry（只含 BNN）
     }
 }

@@ -165,7 +165,7 @@ public class OriginalMapper implements FittableMapper, AutoCloseable {
 
     @Override
     public VisionEncoder newVisionEncoder() {
-        return nn.newVisionEncoder();
+        return new RgbFloatEncoder();
     }
 
     @Override

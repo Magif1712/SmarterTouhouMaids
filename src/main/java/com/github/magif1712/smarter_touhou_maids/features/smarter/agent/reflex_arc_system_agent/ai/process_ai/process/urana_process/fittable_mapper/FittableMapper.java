@@ -117,8 +117,8 @@ public interface FittableMapper extends AutoCloseable {
     /**
      * 创建视觉解码器（可选能力，default 委托链的 mapper 段）。
      * <p>
-     * 解码器由所持 nn 家族提供（{@code nn.newVisionEncoder()}，与载体配对），
-     * mapper 只透传。上层经本方法取得解码器，agent 注入感受器。
+     * 解码器由映射器直接创建（映射器是解码器的模式，解码器住映射器包），
+     * 与感觉载体配对。上层经本方法取得解码器，agent 注入感受器。
      */
     default VisionEncoder newVisionEncoder() {
         throw new UnsupportedOperationException("此映射器未发布视觉解码器（newVisionEncoder）");

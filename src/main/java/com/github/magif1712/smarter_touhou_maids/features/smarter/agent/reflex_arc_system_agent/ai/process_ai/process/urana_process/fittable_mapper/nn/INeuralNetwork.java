@@ -2,7 +2,6 @@ package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_
 
 import com.github.magif1712.smarter_touhou_maids.core.containers.domain.Span;
 import com.github.magif1712.smarter_touhou_maids.core.containers.vector.VectorBase;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.VisionEncoder;
 
 /**
  * 神经网络机械级接口：把"urana 可换 nn"这个不实在约束，实在化为一组方法签名（真善美第4条）。
@@ -109,16 +108,6 @@ public interface INeuralNetwork extends AutoCloseable {
      */
     default VectorBase newFeelingBuffer(int feelingLength) {
         throw new UnsupportedOperationException("此 nn 家族未发布感觉载体契约（newFeelingBuffer）");
-    }
-
-    /**
-     * 视觉解码器契约（可选能力）：快照纹理 → 本家族感觉缓冲的解码器。
-     * <p>
-     * 与 {@link #newFeelingBuffer} 配对：定义载体者同时提供解码器（fittable_mapper 层契约，
-     * 实现住各家族包），非法组合结构上不可表达。经 mapper→process→ai 逐层 default 委托上浮。
-     */
-    default VisionEncoder newVisionEncoder() {
-        throw new UnsupportedOperationException("此 nn 家族未发布视觉解码器（newVisionEncoder）");
     }
 
     /**
