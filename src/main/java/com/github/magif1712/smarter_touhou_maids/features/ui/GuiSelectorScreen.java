@@ -1,9 +1,10 @@
 package com.github.magif1712.smarter_touhou_maids.features.ui;
 
 import com.github.magif1712.smarter_touhou_maids.features.maid.menu.AutoTaskConfigMenu;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.Registry;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryEntry;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryManager;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Branch;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.ConceptTree;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Node;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.RegistrySnapshot;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.ConfigGuiFactory;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.ConfigGuiIds;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
@@ -19,6 +20,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
 import javax.annotation.Nullable;
+import java.util.List;
 
 /**
  * 配置 GUI 选择层入口 Screen（替代 AutoTaskConfigScreen 作为 {@code MenuScreens.register} 的绑定）。
@@ -63,15 +65,19 @@ public class GuiSelectorScreen extends AbstractContainerScreen<AutoTaskConfigMen
     protected void init() {
         super.init();
         EntityMaid maid = this.menu.getMaid();
-        Registry<?> registry = RegistryManager.INSTANCE.get(ConfigGuiIds.CONFIG_GUI);
-        if (registry == null) {
+        RegistrySnapshot snapshot = ConceptTree.snapshot();
+        if (snapshot == null) {
+            return;
+        }
+        Node<ConfigGuiFactory> node = snapshot.node(ConfigGuiIds.CONFIG_GUI);
+        if (node == null) {
             return;
         }
 
         // 当前选择（含默认回退）
         this.selectedId = GuiSelectionStore.INSTANCE.get(maid);
-        if (this.selectedId == null) {
-            this.selectedId = registry.getDefaultId();
+        if (this.selectedId == null || node.branch(this.selectedId) == null) {
+            this.selectedId = node.defaultBranch();
         }
         if (this.selectedId == null) {
             return;
@@ -82,12 +88,12 @@ public class GuiSelectorScreen extends AbstractContainerScreen<AutoTaskConfigMen
 
         // GUI 类型选择按钮（与 ModeSelectorPanel 的 CycleButton 风格一致）
         CycleButton<ResourceLocation> selectorButton = CycleButton.<ResourceLocation>builder(id -> {
-            RegistryEntry<?> entry = registry.get(id);
-            return entry != null
-                    ? Component.translatable(entry.getDisplayNameKey())
+            Branch<?> branch = node.branch(id);
+            return branch != null
+                    ? Component.translatable(branch.meta().displayNameKey())
                     : Component.literal(id.toString());
         })
-                .withValues(registry.getAllIds())
+                .withValues(List.copyOf(node.branches().keySet()))
                 .withInitialValue(this.selectedId)
                 .create(cx - 100, selectorY, 200, 20,
                         Component.translatable("gui.smarter_touhou_maids.selector.choose"),
@@ -110,22 +116,26 @@ public class GuiSelectorScreen extends AbstractContainerScreen<AutoTaskConfigMen
     /**
      * 打开选中的配置 GUI：保存选择 → 创建 Screen → setScreen 切换。
      * <p>
-     * factory 通过 unchecked cast 从 RegistryEntry&lt;?&gt; 取出——CONFIG_GUI registry
-     * 只持有 ConfigGuiFactory entries，cast 安全。
+     * factory 即分支产物本身（provider 自产：CONFIG_GUI 插槽的分支产物是 ConfigGuiFactory）。
      */
     private void openSelected() {
         if (this.selectedId == null) {
             return;
         }
-        Registry<?> registry = RegistryManager.INSTANCE.get(ConfigGuiIds.CONFIG_GUI);
-        if (registry == null) {
+        RegistrySnapshot snapshot = ConceptTree.snapshot();
+        if (snapshot == null) {
             return;
         }
-        RegistryEntry<?> entry = registry.get(this.selectedId);
-        if (entry == null) {
-            entry = registry.getDefault();
+        Node<ConfigGuiFactory> node = snapshot.node(ConfigGuiIds.CONFIG_GUI);
+        if (node == null) {
+            return;
         }
-        if (entry == null) {
+        Branch<ConfigGuiFactory> branch = node.branch(this.selectedId);
+        if (branch == null) {
+            ResourceLocation def = node.defaultBranch();
+            branch = def != null ? node.branch(def) : null;
+        }
+        if (branch == null) {
             return;
         }
 
@@ -136,7 +146,8 @@ public class GuiSelectorScreen extends AbstractContainerScreen<AutoTaskConfigMen
         }
 
         // 创建并切换到选中的 Screen（共享 menu）
-        ConfigGuiFactory factory = (ConfigGuiFactory) entry.getFactory();
+        // provider 自产：分支的 factory 对象即 ConfigGuiFactory 自身（freeze 期类型校验已保证），受控强转
+        ConfigGuiFactory factory = (ConfigGuiFactory) branch.factory();
         Minecraft.getInstance().setScreen(factory.create(this.menu, this.inventory, this.title));
     }
 

@@ -1,10 +1,16 @@
 package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.panels;
 
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.AgentNodeKeys;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.SelectionLoader;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.SmarterClientState;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.Registry;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryEntry;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryIds;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryManager;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.SmarterLayerWalker;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Branch;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.ConceptTree;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.ConstraintSolver;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Node;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.NodeKey;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.RegistrySnapshot;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Selection;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.IConfigPanel;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.PanelContext;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.layout.ConfigRow;
@@ -16,18 +22,28 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
- * Smarter 各层级模式选择面板：sensor 叶子 → agent→ai→process→nn 递归链 → effector 叶子（per-maid）。
+ * Smarter 各插槽的模式选择面板：概念树递归展开（per-maid）。
  * <p>
- * 迁移自原 AutoTaskConfigScreen 的 buildModeSelectors/buildLeafModeSelector。
- * 递归展开逻辑不变（按选中 entry 的 subRegistryId 下钻），改用 VerticalStack 自动推进 y，
- * 且选择变化时通过 {@link PanelContext#rebuildTrigger} 触发 Screen 重建下层按钮。
+ * <b>概念树驱动</b>：从根插槽（AGENT）出发，沿当前选中 Branch 声明的 children 递归展开——
+ * sensor/effector/ai/process/mapper/nn 同构（都是可切换、可展示的插槽），层次数量不限，
+ * visited 用<b>路径键</b>防重复（同一插槽在不同父下可出现多次，如两个 mapper 各自的 NN 插槽）。
  * <p>
- * sensor/effector 是与 ai 并列的叶子层（agent 下 sensor+ai+effector 三子模式），
- * subRegistryId=null 故不进递归链，独立建按钮。
+ * <b>推论2 落地</b>：选项经 {@link ConstraintSolver#selectableBranches} 过滤——只列
+ * "代入后整体仍可满足"的分支（Ext(D) 内元素），玩家无法选到不兼容组合（如旧流程+新感受器）。
+ * <p>
+ * <b>级联修正</b>：选定分支后用 {@link ConstraintSolver#solveAssignment} 求见证赋值，
+ * 把与之冲突的其它已存选择重置为见证值（如选 urana_original 时自动把 sensor 切到推模型）。
+ * <p>
+ * 改选择时 callback 调 rebuildTrigger 触发 Screen 重建下层按钮。
  */
 @OnlyIn(Dist.CLIENT)
 public class ModeSelectorPanel implements IConfigPanel {
@@ -42,87 +58,124 @@ public class ModeSelectorPanel implements IConfigPanel {
         if (maid == null) {
             return;
         }
-        buildLeafSelector(maid, ctx, stack, RegistryIds.SENSOR);
-        buildModeSelectors(maid, ctx, stack, RegistryIds.AGENT);
-        buildLeafSelector(maid, ctx, stack, RegistryIds.EFFECTOR);
+        RegistrySnapshot snapshot = ConceptTree.snapshot();
+        if (snapshot == null) {
+            return;
+        }
+        Selection selection = SelectionLoader.effectiveSelection(snapshot, maid);
+        buildNodeSelectors(maid, ctx, stack, snapshot, selection, AgentNodeKeys.AGENT, new HashSet<>(), "");
     }
 
     /**
-     * 叶子层模式选择按钮（非递归，单层 CycleButton）。
-     * 用于 sensor/effector 这类与 ai 并列的叶子层。subRegistryId=null，不递归。
+     * 递归展开一个插槽的选择按钮，并沿当前生效分支的 children 下钻。
+     * 选项过滤：只列 ConstraintSolver 判定可选的分支（推论2）。
+     */
+    private void buildNodeSelectors(EntityMaid maid, PanelContext ctx, VerticalStack stack,
+                                    RegistrySnapshot snapshot, Selection selection, NodeKey<?> nodeKey,
+                                    Set<String> visitedPaths, String path) {
+        String pathKey = path + "/" + nodeKey.id();
+        if (!visitedPaths.add(pathKey)) {
+            return;
+        }
+        Node<?> node = snapshot.node(nodeKey);
+        if (node == null) {
+            return; // 附属未注册此插槽，跳过
+        }
+
+        // 当前生效分支（Selection 选中且存在 → 用之；否则默认）
+        Branch<?> currentBranch = SmarterLayerWalker.effectiveBranch(node, selection);
+        ResourceLocation currentId = currentBranch != null ? currentBranch.id() : null;
+
+        // 推论2：可选集 = 代入后整体仍可满足的分支
+        Set<ResourceLocation> selectable = new LinkedHashSet<>();
+        ConstraintSolver.selectableBranches(snapshot.nodes()::get, AgentNodeKeys.AGENT, nodeKey,
+                selection, /*->*/ selectable);
+        // 当前生效分支始终可见（即使因残留选择暂时不可满足——展示真实现状，级联修正会拉回合法）
+        List<ResourceLocation> values = node.branches().keySet().stream()
+                .filter(id -> selectable.contains(id) || id.equals(currentId))
+                .toList();
+        if (values.isEmpty() || currentId == null) {
+            return;
+        }
+
+        ConfigRow row = stack.addRow();
+        CycleButton<ResourceLocation> btn = CycleButton.<ResourceLocation>builder(valueToText(node))
+                .withValues(values)
+                .withInitialValue(currentId)
+                .create(row.x(), row.y(), 200, 20,
+                        nodeTitle(nodeKey),
+                        (b, selectedId) -> {
+                            applySelectionWithCascade(maid, snapshot, selection, nodeKey, selectedId);
+                            ctx.rebuildTrigger.run();
+                        });
+        row.addWidget(btn);
+
+        // 递归：沿当前生效分支的 children 下钻
+        if (currentBranch != null) {
+            for (Map.Entry<String, NodeKey<?>> child : currentBranch.children().entrySet()) {
+                buildNodeSelectors(maid, ctx, stack, snapshot, selection, child.getValue(), visitedPaths, pathKey);
+            }
+        }
+    }
+
+    /**
+     * 选定分支 + 级联修正：以刚选的值为锚，其余已存条目贪心最大保留（能满足才保留、
+     * 冲突才丢弃），求解见证后：丢弃的条目清除（回退默认），见证中不同的条目重置为见证值，
+     * 最后写入选定本身。
      * <p>
-     * <b>切换后触发重建</b>（真善美第2条）：叶子层虽无下层模式按钮，但切换后下游 Panel
-     * （AgentDebugPanel / RuntimeParamsPanel）的调试项/参数需随新 factory 动态刷新，
-     * 故同样调 {@code ctx.rebuildTrigger.run()}——与 {@link #buildModeSelectors} 一致。
+     * 例：当前 {process=urana_original, sensor=push}，用户把 process 切回 urana（新）——
+     * push 与 urana 冲突 → push 被丢弃清除（sensor 回退默认拉模型），组合合法。
+     * 反向：当前 {process=urana, sensor=pull}，用户选 sensor=push → process 与 push 冲突
+     * → 见证把 process 重置为 urana_original。两个方向都不死锁（bug 修复）。
      */
-    private void buildLeafSelector(EntityMaid maid, PanelContext ctx, VerticalStack stack,
-                                    ResourceLocation registryId) {
-        Registry<?> registry = RegistryManager.INSTANCE.get(registryId);
-        if (registry == null) {
-            return; // 附属未注册此层，跳过
+    private static void applySelectionWithCascade(EntityMaid maid, RegistrySnapshot snapshot, Selection selection,
+                                                  NodeKey<?> nodeKey, ResourceLocation selectedId) {
+        Selection fixed = selection.with(nodeKey, selectedId);
+        Map<ResourceLocation, ResourceLocation> witness = new LinkedHashMap<>();
+        if (!ConstraintSolver.solveAssignment(snapshot.nodes()::get, AgentNodeKeys.AGENT, fixed, /*->*/ witness)) {
+            // 全固定不可满足 → 贪心最大保留：以刚选值为锚，其余已存条目逐个试加
+            Map<ResourceLocation, ResourceLocation> kept = new LinkedHashMap<>();
+            kept.put(nodeKey.id(), selectedId);
+            List<ResourceLocation> dropped = new java.util.ArrayList<>();
+            for (Map.Entry<ResourceLocation, ResourceLocation> e : selection.choices().entrySet()) {
+                if (e.getKey().equals(nodeKey.id())) {
+                    continue;
+                }
+                Selection trial = new Selection(kept).with(new NodeKey<>(e.getKey(), Object.class), e.getValue());
+                if (ConstraintSolver.isSatisfiable(snapshot.nodes()::get, AgentNodeKeys.AGENT, trial)) {
+                    kept.put(e.getKey(), e.getValue());
+                } else {
+                    dropped.add(e.getKey());
+                }
+            }
+            // 丢弃的条目清除（回退默认分支）
+            for (ResourceLocation droppedId : dropped) {
+                SmarterClientState.INSTANCE.clearMode(maid, droppedId);
+            }
+            witness.clear();
+            ConstraintSolver.solveAssignment(snapshot.nodes()::get, AgentNodeKeys.AGENT,
+                    new Selection(kept), /*->*/ witness);
         }
-        ResourceLocation currentId = SmarterClientState.INSTANCE.getMode(maid, registryId);
-        if (currentId == null) {
-            currentId = registry.getDefaultId();
-        }
-
-        ConfigRow row = stack.addRow();
-        CycleButton<ResourceLocation> btn = CycleButton.<ResourceLocation>builder(valueToText(registry))
-                .withValues(registry.getAllIds())
-                .withInitialValue(currentId)
-                .create(row.x(), row.y(), 200, 20,
-                        registryTitle(registryId),
-                        (b, selectedId) -> {
-                            SmarterClientState.INSTANCE.setMode(maid, registryId, selectedId);
-                            ctx.rebuildTrigger.run();
-                        });
-        row.addWidget(btn);
+        // 见证修正：活动树内与当前生效选择不同的插槽，重置为见证值（不覆盖刚选的插槽）
+        witness.forEach((nodeId, branchId) -> {
+            if (!nodeId.equals(nodeKey.id()) && !branchId.equals(selection.branchOf(nodeId))) {
+                SmarterClientState.INSTANCE.setMode(maid, nodeId, branchId);
+            }
+        });
+        SmarterClientState.INSTANCE.setMode(maid, nodeKey.id(), selectedId);
     }
 
-    /**
-     * 递归展开模式选择按钮（动态显隐，兼容无限层次）。
-     * 选中 entry 后据其 subRegistryId 递归展开下层；subRegistryId 为 null 时停止。
-     * 改选择时 callback 调 rebuildTrigger 触发 init() 重跑，下层按钮按新选择重建。
-     */
-    private void buildModeSelectors(EntityMaid maid, PanelContext ctx, VerticalStack stack,
-                                    ResourceLocation registryId) {
-        Registry<?> registry = RegistryManager.INSTANCE.get(registryId);
-        if (registry == null) {
-            return; // 附属未注册此层，跳过
-        }
-        ResourceLocation currentId = SmarterClientState.INSTANCE.getMode(maid, registryId);
-        if (currentId == null) {
-            currentId = registry.getDefaultId();
-        }
-
-        ConfigRow row = stack.addRow();
-        CycleButton<ResourceLocation> btn = CycleButton.<ResourceLocation>builder(valueToText(registry))
-                .withValues(registry.getAllIds())
-                .withInitialValue(currentId)
-                .create(row.x(), row.y(), 200, 20,
-                        registryTitle(registryId),
-                        (b, selectedId) -> {
-                            SmarterClientState.INSTANCE.setMode(maid, registryId, selectedId);
-                            ctx.rebuildTrigger.run();
-                        });
-        row.addWidget(btn);
-
-        // 递归：查选中 entry 的 subRegistryId
-        RegistryEntry<?> currentEntry = registry.get(currentId);
-        if (currentEntry != null && currentEntry.getSubRegistryId() != null) {
-            buildModeSelectors(maid, ctx, stack, currentEntry.getSubRegistryId());
-        }
-    }
-
-    private static Function<ResourceLocation, Component> valueToText(Registry<?> registry) {
+    private static Function<ResourceLocation, Component> valueToText(Node<?> node) {
         return id -> {
-            RegistryEntry<?> entry = registry.get(id);
-            return Component.translatable(entry.getDisplayNameKey());
+            Branch<?> branch = node.branch(id);
+            return branch != null
+                    ? Component.translatable(branch.meta().displayNameKey())
+                    : Component.literal(id.toString());
         };
     }
 
-    /** registry 层标题（如 agent/ai/process/nn/sensor/effector）的 i18n key。 */
-    private static Component registryTitle(ResourceLocation registryId) {
-        return Component.translatable("mode.smarter_touhou_maids.registry." + registryId.getPath());
+    /** 插槽标题（如 agent/ai/process/nn/sensor/effector）的 i18n key。 */
+    private static Component nodeTitle(NodeKey<?> nodeKey) {
+        return Component.translatable("mode.smarter_touhou_maids.registry." + nodeKey.id().getPath());
     }
 }

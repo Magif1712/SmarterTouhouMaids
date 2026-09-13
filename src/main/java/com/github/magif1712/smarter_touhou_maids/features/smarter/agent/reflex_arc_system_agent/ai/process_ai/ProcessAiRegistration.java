@@ -1,13 +1,15 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai;
 
 import com.github.magif1712.smarter_touhou_maids.SmarterTouhouMaids;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.AgentNodeKeys;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.AiFactory;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.ProcessFactory;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.IAiSystem;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.IProcessSystem;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.UranaProcessModes;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.Registry;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryEntry;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryIds;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryManager;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Branch;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.ConceptTree;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Meta;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Node;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -17,26 +19,20 @@ import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 /**
  * AI 层（process_ai）的<b>自包含注册</b>（@EventBusSubscriber）。
  * <p>
- * AI 层自身的 registry id（{@link RegistryIds#AI}）由上层 agent 层定义——
+ * AI 层自身的插槽键（{@link AgentNodeKeys#AI}）由上层 agent 层定义——
  * 父层决定子层 id，子层引用父层定义（上→下决定，下→上引用）。
- * AI 层决定的直接下层 id（{@link ProcessAiRegistryIds#PROCESS}）在本层定义。
+ * AI 层决定的直接下层插槽（{@link ProcessAiNodeKeys#PROCESS}）在本层定义。
  * <p>
- * 在 {@link FMLCommonSetupEvent} 中：
+ * 在 {@link FMLCommonSetupEvent} 中（概念树原生注册）：
  * <ol>
- *   <li>创建 AiRegistry（id={@link RegistryIds#AI}），注册 process_ai entry
- *       （subRegistryId={@link ProcessAiRegistryIds#PROCESS}）。</li>
- *   <li>创建 ProcessRegistry（id={@link ProcessAiRegistryIds#PROCESS}），注册 urana entry
- *       （经 {@link UranaProcessModes#processEntry(String)} 自包含贡献，subRegistryId=MAPPER）。</li>
+ *   <li>创建 AI 插槽，注册 process_ai Branch（child "process" → PROCESS 插槽）。</li>
+ *   <li>创建 PROCESS 插槽，注册 urana Branch（经 {@link UranaProcessModes#processBranch(String)}
+ *       自包含贡献，child "mapper" + 拉模型感受器契约），默认指向 urana。</li>
  * </ol>
- * <p>
- * <b>时序</b>：{@code AiModeDefaults.registerDefaults()} 经 {@code modEventBus.addListener}
- * 注册（在 mod 构造器期挂载），先于所有 @EventBusSubscriber 触发，故 AgentRegistry 已存在。
- * 本类用 {@link EventPriority#HIGHEST} 确保在其它 @EventBusSubscriber 之前运行——
- * 旧版 {@code urana_process_original.UranaProcessRegistration}（priority=LOWEST）需要 ProcessRegistry
- * 已存在才能追加 urana_original entry。
+ * 旧版 urana_original 由旧版包的 {@code UranaProcessRegistration}（LOWEST）追加进 PROCESS 插槽。
  * <p>
  * 设计原则（真善美第2条）：每层只决定其下一层。AI 层只定义 PROCESS（直接下层），
- * 不定义 MAPPER/NN/NN_LEGACY（更下层由各层自己定义）。AI 层引用 agent 层的 AI id（上→下决定）。
+ * 不定义 MAPPER/NN/NN_LEGACY（更下层由各层自己定义）。
  */
 @Mod.EventBusSubscriber(modid = SmarterTouhouMaids.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class ProcessAiRegistration {
@@ -47,40 +43,21 @@ public class ProcessAiRegistration {
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onCommonSetup(FMLCommonSetupEvent event) {
         String modId = SmarterTouhouMaids.MOD_ID;
+        ResourceLocation processAiId = new ResourceLocation(modId, "process_ai");
 
-        // === 原初代理的 AiRegistry（id=AI）+ ProcessRegistry（id=PROCESS）===
-        // AI registry 含 process_ai entry（subRegistryId=PROCESS）。
-        // PROCESS 此时为空——urana_original 由原初分支的 UranaProcessRegistration（LOWEST）追加。
-        ResourceLocation aiDefault = new ResourceLocation(modId, "process_ai");
-        Registry<AiFactory> aiRegistry = new Registry<>(RegistryIds.AI, aiDefault);
-        aiRegistry.register(new RegistryEntry<>(
-                aiDefault,
-                "mode." + modId + ".ai.process_ai",
-                new ProcessAiFactory(ProcessAiRegistryIds.PROCESS),
-                ProcessAiRegistryIds.PROCESS));
-        RegistryManager.INSTANCE.register(aiRegistry);
+        // === AI 插槽：process_ai 分支（child "process"）===
+        Node<IAiSystem> ai = ConceptTree.builder().node(AgentNodeKeys.AI);
+        Branch<IAiSystem> processAi = new Branch<>(
+                processAiId,
+                new ProcessAiFactory(),
+                new Meta("mode." + modId + ".ai.process_ai", 0, modId));
+        processAi.addChild("process", ProcessAiNodeKeys.PROCESS);
+        ai.addBranch(processAi);
+        ai.defaultBranch(processAiId);
 
-        Registry<ProcessFactory> processRegistry = new Registry<>(
-                ProcessAiRegistryIds.PROCESS,
-                new ResourceLocation(modId, "urana_original")); // 默认指向 urana_original（原初分支追加后存在）
-        RegistryManager.INSTANCE.register(processRegistry);
-
-        // === 新版代理的 AiRegistry（id=AI_SMARTER）+ ProcessRegistry（id=PROCESS_SMARTER）===
-        // 与原初代理隔离：只含 urana（新版流程），urana_original 不可选——避免不兼容组合
-        // （urana_original 的 sensor/feeling 载体与新版代理的采集/解码链不兼容）。
-        Registry<AiFactory> aiSmarterRegistry = new Registry<>(RegistryIds.AI_SMARTER, aiDefault);
-        aiSmarterRegistry.register(new RegistryEntry<>(
-                aiDefault,
-                "mode." + modId + ".ai.process_ai",
-                new ProcessAiFactory(ProcessAiRegistryIds.PROCESS_SMARTER),
-                ProcessAiRegistryIds.PROCESS_SMARTER));
-        RegistryManager.INSTANCE.register(aiSmarterRegistry);
-
-        // urana（核心默认 process）注册到 PROCESS_SMARTER（新版代理专用）。
-        ResourceLocation processSmarterDefault = new ResourceLocation(modId, UranaProcessModes.PROCESS_ID);
-        Registry<ProcessFactory> processSmarterRegistry = new Registry<>(
-                ProcessAiRegistryIds.PROCESS_SMARTER, processSmarterDefault);
-        processSmarterRegistry.register(UranaProcessModes.processEntry(modId));
-        RegistryManager.INSTANCE.register(processSmarterRegistry);
+        // === PROCESS 插槽：urana（默认）+ urana_original（旧版包 LOWEST 追加）===
+        Node<IProcessSystem> process = ConceptTree.builder().node(ProcessAiNodeKeys.PROCESS);
+        process.addBranch(UranaProcessModes.processBranch(modId));
+        process.defaultBranch(new ResourceLocation(modId, UranaProcessModes.PROCESS_ID));
     }
 }

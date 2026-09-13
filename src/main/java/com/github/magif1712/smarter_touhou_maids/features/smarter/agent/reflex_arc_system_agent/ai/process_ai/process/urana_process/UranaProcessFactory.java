@@ -12,21 +12,10 @@ import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_a
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.IProcessSystem;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.ProcessFactory;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.FittableMapper;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.fittable_mapper.FittableMapperFactory;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.INeuralNetwork;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.NnEncodingProfile;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.nn.NnFactory;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.semantics.containers.io.IODomain;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.semantics.containers.io.InputVectorDomain;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.semantics.containers.io.OutputVectorDomain;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.Registry;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryEntry;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryManager;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process.UranaProcessRegistryIds;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.AssemblyContext;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.OutSlot;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -86,60 +75,28 @@ public class UranaProcessFactory implements ProcessFactory, DebugPanelProvider, 
     private static final long MIN_DT_MAX = 5000;
 
     @Override
-    public IProcessSystem create(CompoundTag config, EntityMaid maid, SaveSlot slot) {
-        // === 查 MapperRegistry 取下层 mapper factory（MAPPER 是 process 的直接下层）===
-        // mapperId 缺失/非法时回退 MapperRegistry 默认 entry（Registry.resolve 内置 fallback）。
-        Registry<?> mapperRegistry = RegistryManager.INSTANCE.get(UranaProcessRegistryIds.MAPPER);
-        RegistryEntry<?> mapperEntry = mapperRegistry.resolve(config.getString(UranaProcessRegistryIds.MAPPER.toString()));
-        FittableMapperFactory mapperFactory = (FittableMapperFactory) mapperEntry.getFactory();
-
-        // === 从 mapper entry 动态获得 NN registry id（不 import NN 常量——NN 是 mapper 的下层，
-        //     不是 process 的直接下层；process 只感知 mapper，不感知 nn，「我的附庸的附庸不是我的附庸」）===
-        // mapper entry 的 subRegistryId 指向其下层 nn registry（如 smarter_touhou_maids:nn）。
-        // 附属模组可自定义 mapper→custom_layer→nn 路径，process 零改动地适配新层级。
-        ResourceLocation nnRegistryId = mapperEntry.getSubRegistryId();
-        Registry<?> nnRegistry = RegistryManager.INSTANCE.get(nnRegistryId);
-        RegistryEntry<?> nnEntry = nnRegistry.resolve(config.getString(nnRegistryId.toString()));
-        NnFactory nnFactory = (NnFactory) nnEntry.getFactory();
-
-        // === profile = nnFactory.encodingProfile()（无实例查询，破鸡生蛋）===
-        // profile 是 nn 载体编码长度的契约（F/B/dt/gUnit），urana domain 用它 + 倍数关系算 span。
-        // nn 实例尚未创建，但 factory 是"nn 类的代言人"，无需实例就能告诉你这类 nn 的编码剖面。
-        // 换 nn 实现（CNN→别的）时，新 factory 返回自己的 profile，本工厂零改动（真善美第3条）。
-        NnEncodingProfile profile = nnFactory.encodingProfile();
-
-        // === 用 profile 建 domain（urana 用 profile + 倍数关系算 span）===
-        // domain 只持 urana 的布局（C@F@G@dt / C@F@B）与数量关系（C=F×3、G=4方位），
-        // 长度项 = profile 基础长度 × urana 倍数。
-        IODomain ioDomain = new IODomain(profile);
-        InputVectorDomain inputDomain = ioDomain.getInputDomain();
-        OutputVectorDomain outputDomain = ioDomain.getOutputDomain();
-
-        // === 创建 nn 实例（inputSize/outputSize 由 urana 算，nn 只接收 total 分配缓冲）===
-        // nn 不感知层向量的区间有什么语义，span 仍由 urana 传入——与 INeuralNetwork 注释承诺一致。
-        INeuralNetwork nn = nnFactory.create(slot, inputDomain.totalLength(), outputDomain.totalLength());
-
-        // === 装配 mapper（mapper 内部持 nn + domain，是 nn 的宿主）===
-        // UranaSystem 经 FittableMapper 接口使用 mapper——不感知具体 mapper 家族。
-        // 附属模组可在 process→nn 之间插入实现 FittableMapper 的装饰器层（如日志/量化/蒸馏），
-        // 由 mapperFactory.create 返回（factory 自决返回何种 mapper 实例），本工厂零改动地适配。
-        FittableMapper mapper = mapperFactory.create(nn, inputDomain, outputDomain);
+    public void create(AssemblyContext ctx, /*->*/ OutSlot<IProcessSystem> out) {
+        // === mapper 子实例由 Resolver 按本分支声明的 child（"mapper"）解析传入 ===
+        // mapper 内部持 nn（nn 是 mapper 的附庸，mapper 工厂经 provider 模式自驱装好），
+        // 本工厂不感知 nn——「我的附庸的附庸不是我的附庸」。
+        FittableMapper mapper = ctx.child("mapper", FittableMapper.class);
 
         // === 读 urana 双环节律参数（factory 自己 parse + clamp）===
         // 值类型解读是 factory 消费层的关注点，管道只搬 String。
         // maid 为 null 时 ParamStore.getString 返回默认值（不限速）。
         long fastMinDt = parseClampDt(
-                ParamStore.INSTANCE.getString(maid, KEY_FAST_MIN_DT, String.valueOf(DEFAULT_FAST_MIN_DT)));
+                ParamStore.INSTANCE.getString(ctx.maid(), KEY_FAST_MIN_DT, String.valueOf(DEFAULT_FAST_MIN_DT)));
         long slowMinDt = parseClampDt(
-                ParamStore.INSTANCE.getString(maid, KEY_SLOW_MIN_DT, String.valueOf(DEFAULT_SLOW_MIN_DT)));
+                ParamStore.INSTANCE.getString(ctx.maid(), KEY_SLOW_MIN_DT, String.valueOf(DEFAULT_SLOW_MIN_DT)));
 
         // === mapper 注入 UranaSystem（profile 已下沉到 nn，domain 已下沉到 mapper）===
         // UranaSystem 期望 FittableMapper 接口——无需强转，支持装饰器层（真善美第2条：依赖接口）。
         UranaSystem urana = new UranaSystem(mapper, fastMinDt, slowMinDt);
 
         // === load urana 自身跨会话状态（∇C/继承/休眠时间/锚点）===
-        // 时机（C3）：nn 权重已由 nnFactory.create load；此处 load urana 层状态。
+        // 时机（C3）：nn 权重已由 nn provider 的 create load；此处 load urana 层状态。
         // 在 awaken 前调用——fast/slow 工作线程尚未启动，无并发。
+        SaveSlot slot = ctx.saveSlot();
         urana.load(slot);
 
         // === 注入定期 save 配置（C6 崩溃恢复）===
@@ -149,6 +106,7 @@ public class UranaProcessFactory implements ProcessFactory, DebugPanelProvider, 
         // （世界/服务器），只从已实在化的 slot 路径反推（真善美第3条 + 第4条）。
         // maid 或 slot 为 null 时（理论不发生，smarterReady=true 必然 maid 非空且 slot 已创建）跳过——
         // urana 用默认值（禁用定期 save）。
+        EntityMaid maid = ctx.maid();
         if (maid != null && slot != null) {
             Path pathDir = Path.of(slot.rootPath()).getParent();
             urana.setPeriodicSaveConfig(
@@ -169,7 +127,7 @@ public class UranaProcessFactory implements ProcessFactory, DebugPanelProvider, 
                             PersistenceConfigProvider.getMaxRetention(maid)));
         }
 
-        return urana;
+        out.set(urana);
     }
 
     @Override

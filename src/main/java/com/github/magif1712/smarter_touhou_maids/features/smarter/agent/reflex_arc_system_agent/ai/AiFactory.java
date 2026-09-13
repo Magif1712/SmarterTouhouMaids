@@ -1,32 +1,17 @@
 package com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai;
 
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.SaveSlot;
-import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
-import net.minecraft.nbt.CompoundTag;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Factory;
 
 /**
- * AI 顶层工厂：按配置创建一个 {@link IAiSystem} 实例。
+ * AI 顶层工厂契约：树原生 {@link Factory}（概念树重构后）。
  * <p>
- * <b>工厂自驱组装</b>（真善美第1条"真"：每层 factory 只注入自己直接使用的下层抽象）：
- * 本工厂直接使用 process（ProcessAiSystem 构造注入 IProcessSystem），故自行查
- * {@code ProcessRegistry} 取下层 process factory 并创建 process，再 new ProcessAiSystem(process)。
- * 外周（SmarterClientService）不感知下层 registry 的存在——它只调本工厂。
- * <p>
- * <b>config 各取所需</b>：config 是一个 CompoundTag，含所有层的选择 id（key = registryId.toString()）。
- * 本工厂只读自己需要的 key（processId），忽略其余。
- * <p>
- * <b>maid/slot 透传</b>（真善美第3条）：maid 透传给下层 process factory，供其经 ParamStore 读自己声明的
- * per-maid 参数（如 urana 节律参数）。slot 透传给下层供其 load 持久化数据。本层不直接用 maid/slot，但需向下传递。
- * <p>
- * 纯规则 ai 的工厂实现不查 ProcessRegistry，直接 new RuleBasedAi(...)（config 里读自己需要的参数）。
+ * <b>工厂自驱组装</b>（真善美第1条"真"）：流程型 ai 的分支工厂从 {@code AssemblyContext}
+ * 取自己声明的 process 子实例，组装 ProcessAiSystem。纯规则 ai 不声明 process child，
+ * 直接造自己的 ai。
  */
-@FunctionalInterface
-public interface AiFactory {
-    /**
-     * @param config 配置载体（含各层 mode id），各 factory 各取所需。
-     * @param maid   目标女仆（透传给下层 process factory，供其读 per-maid 参数）。
-     * @param slot   持久化槽位（透传给下层 process factory 供其 load 持久化数据）。
-     * @return 创建好的 IAiSystem 实例（已注入下层，可直接 awaken）。
-     */
-    IAiSystem create(CompoundTag config, EntityMaid maid, SaveSlot slot);
+public interface AiFactory extends Factory<IAiSystem> {
+    @Override
+    default Class<IAiSystem> producedType() {
+        return IAiSystem.class;
+    }
 }

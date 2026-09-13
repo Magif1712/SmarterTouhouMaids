@@ -18,12 +18,12 @@ import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_a
  *       具体流程系统的实现，不进本接口。换流程系统（urana→别的）时，实现 IProcessSystem 即可，
  *       外周（SmarterClientService）运行期零改动。</li>
  *   <li><b>第3条</b>：把"可替换流程系统"这个不实在的约束，用实在的接口（有签名的方法）固化。
- *       与 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent_original.ai.process_ai.process.urana_process_original.nn.INeuralNetwork}
+ *       与 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process_original.nn.INeuralNetwork}
  *       固化"可替换 NN"同构——nn 层与流程层各自有抽象边界，形成对称结构。</li>
  * </ul>
  * <p>
  * <b>与 INeuralNetwork 的分层</b>：本接口是流程系统对<b>外周</b>的契约（感觉/行为/启停）；
- * {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent_original.ai.process_ai.process.urana_process_original.nn.INeuralNetwork}
+ * {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process_original.nn.INeuralNetwork}
  * 是 NN 对<b>流程系统</b>的契约（前向/反向/区域读写）。两层正交：换 nn 不影响本接口，
  * 换流程系统不影响 INeuralNetwork。UranaSystem 同时是这两层的消费者——它实现本接口对外服务，
  * 内部持 INeuralNetwork 做计算。
@@ -32,7 +32,7 @@ import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_a
  * （由 UranaSystem 构造函数接收）。本接口的 {@link #setDtDebugEnabled} 只控制"是否打印 dt 日志"
  * 这个通用诊断开关，dt 的语义（哪几个环、间隔含义）由实现自管。
  *
- * @see com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent_original.ai.process_ai.process.urana_process_original.UranaSystem
+ * @see com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.process_ai.process.urana_process_original.UranaSystem
  */
 public interface IProcessSystem extends AutoCloseable {
 

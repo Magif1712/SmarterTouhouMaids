@@ -1,9 +1,10 @@
 package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui;
 
 import com.github.magif1712.smarter_touhou_maids.SmarterTouhouMaids;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.Registry;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryEntry;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryManager;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Branch;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.ConceptTree;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Meta;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Node;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.ConfigGuiFactory;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.ConfigGuiIds;
 import net.minecraft.resources.ResourceLocation;
@@ -13,29 +14,14 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 /**
  * 主模组默认配置 GUI 注册：在 {@code FMLClientSetupEvent} 调用 {@link #registerDefaults()}。
  * <p>
- * 创建 {@code Registry<ConfigGuiFactory>}（id={@link com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.ConfigGuiIds#CONFIG_GUI}）并注册默认 entry：
- * {@code smarter_touhou_maids:default} → {@code AutoTaskConfigScreen::new}（标准配置界面）。
- * <p>
- * <b>本类在 standard_config_gui/ 而非 config_gui/ 抽象层</b>（真善美第2条：抽象层不依赖具体实现）：
- * 本类引用 {@link AutoTaskConfigScreen}（standard_config_gui/ 的具体实现），故属于实现包而非抽象包。
- * 类比 {@code AiModeDefaults} 引用 {@code original_bnn.BnnModes}（具体实现包的贡献者）但放在 {@code registry/} 而非 {@code nn/}——
- * 注册代码引用具体实现，但注册代码本身不在接口包内。
- * 这样删掉 standard_config_gui/ 后，抽象层 config_gui/（{@link ConfigGuiFactory} + {@link ConfigGuiIds}）+
- * 上层 ui/（{@link com.github.magif1712.smarter_touhou_maids.features.ui.GuiSelectorScreen GuiSelectorScreen} +
- * {@link com.github.magif1712.smarter_touhou_maids.features.ui.GuiSelectionStore GuiSelectionStore}）
- * 仍可独立编译——满足"单一具体实现子包可独立运行"。
+ * 概念树原生注册：创建 CONFIG_GUI 插槽（GUI 域根，与 agent 域平行的第二根）并注册默认
+ * Branch：{@code smarter_touhou_maids:default} → {@code AutoTaskConfigScreen::new}（标准配置界面）。
  * <p>
  * <b>客户端专用</b>（{@code @OnlyIn(Dist.CLIENT)}）：ConfigGuiFactory 返回 Screen（客户端对象），
- * 故 registry + entries 仅在客户端创建。服务端的 RegistryManager 不含 CONFIG_GUI——服务端不关心客户端 GUI 渲染。
+ * 故本插槽仅在客户端注册——服务端的 ConceptTree 不含 CONFIG_GUI 根（服务端不关心客户端 GUI 渲染）。
  * <p>
- * 附属模组在自己的 {@code FMLClientSetupEvent} 调
- * {@code RegistryManager.INSTANCE.get(CONFIG_GUI).register(new RegistryEntry<>(myId, myI18nKey, myFactory, null))}
- * 即可追加自定义 GUI，{@link com.github.magif1712.smarter_touhou_maids.features.ui.GuiSelectorScreen} 自动列出。
- * <p>
- * 设计原则（真善美第3条）：把"主模组提供哪些 GUI"这个不实在的约束，实在化为注册代码。
- *
- * @see com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.ConfigGuiFactory
- * @see com.github.magif1712.smarter_touhou_maids.features.ui.GuiSelectorScreen
+ * 附属模组在自己的注册事件监听里向 CONFIG_GUI 插槽挂自己的 Branch，
+ * {@link com.github.magif1712.smarter_touhou_maids.features.ui.GuiSelectorScreen} 自动列出。
  */
 @OnlyIn(Dist.CLIENT)
 public final class DefaultConfigGuis {
@@ -46,13 +32,12 @@ public final class DefaultConfigGuis {
         String modId = SmarterTouhouMaids.MOD_ID;
         ResourceLocation defaultId = new ResourceLocation(modId, "default");
 
-        // === ConfigGuiRegistry：叶子层，subRegistryId=null（GUI 选择不递归） ===
-        Registry<ConfigGuiFactory> registry = new Registry<>(ConfigGuiIds.CONFIG_GUI, defaultId);
-        registry.register(new RegistryEntry<>(
+        // === CONFIG_GUI 插槽：叶子层（GUI 选择不递归）===
+        Node<ConfigGuiFactory> configGui = ConceptTree.builder().node(ConfigGuiIds.CONFIG_GUI);
+        configGui.addBranch(new Branch<>(
                 defaultId,
-                "gui." + modId + ".config_gui.default",
-                AutoTaskConfigScreen::new,
-                null)); // 叶子，无下层
-        RegistryManager.INSTANCE.register(registry);
+                (ConfigGuiFactory) AutoTaskConfigScreen::new,
+                new Meta("gui." + modId + ".config_gui.default", 0, modId)));
+        configGui.defaultBranch(defaultId);
     }
 }

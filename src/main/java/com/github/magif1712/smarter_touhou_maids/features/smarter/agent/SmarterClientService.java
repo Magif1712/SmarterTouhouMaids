@@ -5,14 +5,14 @@ import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persiste
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.SaveSlotFactory;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.PersistenceConfigProvider;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.WorldPersistenceDir;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.Registry;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryEntry;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryIds;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryManager;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.ConceptTree;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.ConstraintSolver;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.OutSlot;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.RegistrySnapshot;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Resolver;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Selection;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.state.MaidSmarterState;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.event.TickEvent;
@@ -33,7 +33,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * <ul>
  *   <li>smarter 就绪生命周期管理：smarterReady（=maid 任务模式为自动任务，{@link AutoTask#isAutoTask}）
  *       变化触发 init / shutdown</li>
- *   <li>从 {@link RegistryIds#AGENT} 顶层 registry 查 factory 创建 agent（工厂自驱组装下层）</li>
+ *   <li>从 {@link AgentNodeKeys#AGENT} 根插槽经 Resolver 组装 agent（各层工厂自驱）</li>
  *   <li>委托 agent 执行 onClientTick / onPostRender（经 {@link IAgent#isActive()} 守卫）</li>
  *   <li>激活状态 sync：agent isActive 边界变化时 sync 到服务端（替代旧 smarter UI 开关 sync）</li>
  * </ul>
@@ -188,17 +188,20 @@ public class SmarterClientService {
         LOGGER.info("[ReflexArc] 初始化 ReflexArcSystem...");
         EntityMaid maid = getMaidFromSources();
 
-        // 组装 config：逐层走 SmarterClientState.getMode() 读当前有效模式选择（pending 优先，NBT 兜底）。
-        // 不再走 MaidSmarterState.getAiModes()（只读 persistentData，绕过 pending 缓存）——
-        // 客户端 persistentData 不自动双端同步（Forge 服务端专属），maid 重放后为空，
-        // 导致 init 用默认模式而非用户选择。UI（ModeSelectorPanel）走 getMode 有 pending 兜底，
-        // init 也必须走同一路径（真善美第2条：Y 在 X 上层，读法切换不改调用方）。
-        // maid 为 null 时 config 为空，registry.resolve("") fallback 到各层默认 entry（旧存档兼容）。
-        // 真善美第3条：外周不再硬编码下层特定参数（如 urana 的 minDt key）进 config——
-        // per-maid 参数由各层 factory 经 maid 查 ParamStore 自取，nbtKey 由该层自备。换 process 时外周零改动。
-        CompoundTag config = new CompoundTag();
-        if (maid != null) {
-            buildConfigFromPending(maid, config);
+        RegistrySnapshot snapshot = ConceptTree.snapshot();
+        if (snapshot == null) {
+            LOGGER.error("[ReflexArc] 概念树未 freeze（加载期未完成），跳过初始化");
+            return;
+        }
+
+        // === Selection：唯一显式入参 d（推论1）===
+        // 数据源经 SelectionLoader 收口（NBT ∪ pending，未知条目过滤）；
+        // 契约护栏：不兼容组合回退全默认（freeze 已校验全默认可满足），不部分拼装必炸组合。
+        Selection selection = SelectionLoader.effectiveSelection(snapshot, maid);
+        if (!ConstraintSolver.isSatisfiable(snapshot.nodes()::get, AgentNodeKeys.AGENT, selection)) {
+            LOGGER.warn("[ReflexArc] 当前模式选择不满足兼容性契约，回退全默认组装: {}",
+                    selection.choices());
+            selection = Selection.empty();
         }
 
         // 持久化槽位（C3/C4）：load 时取最新已有版本（无则新版本路径，各层 load 见文件缺失则保持默认）。
@@ -215,13 +218,11 @@ public class SmarterClientService {
         }
         this.saveSlot = slot;
 
-        // 工厂自驱组装：外周只调顶层 agent factory，下层（ai→process→nn）组装自驱。
-        // config + maid + slot 透传，各层 factory 各取所需（config 读 mode id，maid 读 per-maid 参数，
-        // slot 供 nn/process load 持久化数据）。
-        Registry<?> agentRegistry = RegistryManager.INSTANCE.get(RegistryIds.AGENT);
-        RegistryEntry<?> agentEntry = agentRegistry.resolve(config.getString(RegistryIds.AGENT.toString()));
-        AgentFactory agentFactory = (AgentFactory) agentEntry.getFactory();
-        this.agent = agentFactory.create(config, maid, slot);
+        // 概念树解析组装：外周只给根插槽 + Selection + maid + slot，
+        // 下层（ai→process→mapper/nn、sensor/effector）由 Resolver 按 Branch 声明的 children 自驱组装。
+        OutSlot<IAgent> out = new OutSlot<>();
+        Resolver.resolve(snapshot, AgentNodeKeys.AGENT, selection, maid, slot, /*->*/ out);
+        this.agent = out.get();
         this.agent.awaken();
 
         this.initialized = true;
@@ -271,44 +272,6 @@ public class SmarterClientService {
      */
     public IAgent getAgent() {
         return agent;
-    }
-
-    /**
-     * 用 SmarterClientState.getMode()（pending 优先，NBT 兜底）逐层遍历 registry 树组装 config。
-     * <p>
-     * 与 UI（ModeSelectorPanel）和 SmarterLayerWalker 走同一路径（真善美第2条：统一读入口，
-     * Y 在 X 上层，读法切换不改调用方）。不再走 MaidSmarterState.getAiModes()（只读 persistentData，
-     * 绕过 pending 缓存，客户端 persistentData 不自动双端同步）。
-     * <p>
-     * 遍历结构与 SmarterLayerWalker 一致：递归链（agent→ai→process→nn）+ 叶子层（sensor、effector）。
-     */
-    private static void buildConfigFromPending(EntityMaid maid, CompoundTag config) {
-        buildConfigChain(maid, config, RegistryIds.AGENT);
-        buildConfigLeaf(maid, config, RegistryIds.SENSOR);
-        buildConfigLeaf(maid, config, RegistryIds.EFFECTOR);
-    }
-
-    private static void buildConfigChain(EntityMaid maid, CompoundTag config, ResourceLocation registryId) {
-        Registry<?> registry = RegistryManager.INSTANCE.get(registryId);
-        if (registry == null) return;
-        ResourceLocation currentId = SmarterClientState.INSTANCE.getMode(maid, registryId);
-        if (currentId == null) {
-            currentId = registry.getDefaultId();
-        }
-        config.putString(registryId.toString(), currentId.toString());
-        RegistryEntry<?> entry = registry.get(currentId);
-        if (entry != null && entry.getSubRegistryId() != null) {
-            buildConfigChain(maid, config, entry.getSubRegistryId());
-        }
-    }
-
-    private static void buildConfigLeaf(EntityMaid maid, CompoundTag config, ResourceLocation registryId) {
-        Registry<?> registry = RegistryManager.INSTANCE.get(registryId);
-        if (registry == null) return;
-        ResourceLocation currentId = SmarterClientState.INSTANCE.getMode(maid, registryId);
-        if (currentId != null) {
-            config.putString(registryId.toString(), currentId.toString());
-        }
     }
 
     private SmarterClientService() {

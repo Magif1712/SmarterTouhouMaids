@@ -1,7 +1,9 @@
 package com.github.magif1712.smarter_touhou_maids.features.ui;
 
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.Registry;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryManager;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.ConceptTree;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Node;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.RegistrySnapshot;
+import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.ConfigGuiFactory;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.ConfigGuiIds;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.resources.ResourceLocation;
@@ -34,10 +36,10 @@ public final class GuiSelectionStore {
     }
 
     /**
-     * 读 per-maid 选中 GUI id；未设置回退 registry 默认。
+     * 读 per-maid 选中 GUI id；未设置回退插槽默认分支。
      *
      * @param maidUUID 女仆 UUID
-     * @return 选中 GUI id，registry 未注册时返回 null
+     * @return 选中 GUI id，插槽未注册时返回 null
      */
     @Nullable
     public ResourceLocation get(UUID maidUUID) {
@@ -45,8 +47,12 @@ public final class GuiSelectionStore {
         if (id != null) {
             return id;
         }
-        Registry<?> registry = RegistryManager.INSTANCE.get(ConfigGuiIds.CONFIG_GUI);
-        return registry != null ? registry.getDefaultId() : null;
+        RegistrySnapshot snapshot = ConceptTree.snapshot();
+        if (snapshot == null) {
+            return null;
+        }
+        Node<ConfigGuiFactory> node = snapshot.node(ConfigGuiIds.CONFIG_GUI);
+        return node != null ? node.defaultBranch() : null;
     }
 
     /**

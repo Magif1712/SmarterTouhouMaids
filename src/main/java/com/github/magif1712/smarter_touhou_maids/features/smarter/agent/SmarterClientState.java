@@ -39,10 +39,13 @@ public final class SmarterClientState {
     private final HashMap<UUID, Boolean> pendingSmarterSync = new HashMap<>();
 
     /**
-     * AI 模式选择 pending 缓存：key = maidUUID，value = Map<registryId, selectedId>。
-     * 一层选择一个 entry，层次无限。客户端已发但未收到服务端确认时读此缓存避免读到旧值。
+     * AI 模式选择 pending 缓存：key = maidUUID，value = Map<nodeId, branchId>。
+     * 一层选择一个分支，层次无限。客户端已发但未收到服务端确认时读此缓存避免读到旧值。
      */
     private final HashMap<UUID, Map<ResourceLocation, ResourceLocation>> pendingModeSync = new HashMap<>();
+
+    /** pending 清除缓存：级联修正丢弃的插槽（已发清除包未确认）。与 pendingModeSync 互斥使用。 */
+    private final HashMap<UUID, java.util.Set<ResourceLocation>> pendingModeRemovals = new HashMap<>();
 
     private SmarterClientState() {
     }
@@ -89,12 +92,34 @@ public final class SmarterClientState {
     public void setMode(EntityMaid maid, ResourceLocation registryId, ResourceLocation selectedId) {
         if (maid == null) return;
         pendingModeSync.computeIfAbsent(maid.getUUID(), k -> new HashMap<>()).put(registryId, selectedId);
+        java.util.Set<ResourceLocation> removals = pendingModeRemovals.get(maid.getUUID());
+        if (removals != null) {
+            removals.remove(registryId);
+        }
         NetworkHandler.INSTANCE.sendToServer(new ServerboundSetAiModePacket(maid.getUUID(), registryId, selectedId));
+    }
+
+    /**
+     * 清除 maid 在指定插槽的选择（级联修正丢弃冲突条目）：pending 记录清除 + 发清除包，
+     * 解析回退该插槽默认分支。
+     */
+    public void clearMode(EntityMaid maid, ResourceLocation registryId) {
+        if (maid == null) return;
+        Map<ResourceLocation, ResourceLocation> modes = pendingModeSync.get(maid.getUUID());
+        if (modes != null) {
+            modes.remove(registryId);
+        }
+        pendingModeRemovals.computeIfAbsent(maid.getUUID(), k -> new java.util.HashSet<>()).add(registryId);
+        NetworkHandler.INSTANCE.sendToServer(ServerboundSetAiModePacket.clear(maid.getUUID(), registryId));
     }
 
     @Nullable
     public ResourceLocation getMode(EntityMaid maid, ResourceLocation registryId) {
         if (maid == null) return null;
+        java.util.Set<ResourceLocation> removals = pendingModeRemovals.get(maid.getUUID());
+        if (removals != null && removals.contains(registryId)) {
+            return null;
+        }
         Map<ResourceLocation, ResourceLocation> modes = pendingModeSync.get(maid.getUUID());
         if (modes != null && modes.containsKey(registryId)) {
             return modes.get(registryId);
@@ -102,15 +127,59 @@ public final class SmarterClientState {
         return MaidSmarterState.getModeId(maid, registryId);
     }
 
-    public void onAiModeSync(UUID maidUUID, ResourceLocation registryId, ResourceLocation selectedId) {
-        pendingModeSync.computeIfAbsent(maidUUID, k -> new HashMap<>()).put(registryId, selectedId);
+    /**
+     * 读 maid 的全部模式选择（NBT 打底，pending 覆盖——pending 优先）。
+     * 供 SelectionLoader 构造 Selection（推论1：Selection 是唯一显式入参 d 的数据源收口）。
+     */
+    public Map<ResourceLocation, ResourceLocation> getAllModes(EntityMaid maid) {
+        Map<ResourceLocation, ResourceLocation> merged = new HashMap<>();
+        if (maid == null) {
+            return merged;
+        }
+        for (String key : MaidSmarterState.getAiModes(maid).getAllKeys()) {
+            ResourceLocation nodeId = ResourceLocation.tryParse(key);
+            ResourceLocation branchId = ResourceLocation.tryParse(
+                    MaidSmarterState.getAiModes(maid).getString(key));
+            if (nodeId != null && branchId != null) {
+                merged.put(nodeId, branchId);
+            }
+        }
+        Map<ResourceLocation, ResourceLocation> pending = pendingModeSync.get(maid.getUUID());
+        if (pending != null) {
+            merged.putAll(pending);
+        }
+        java.util.Set<ResourceLocation> removals = pendingModeRemovals.get(maid.getUUID());
+        if (removals != null) {
+            removals.forEach(merged::remove);
+        }
+        return merged;
+    }
+
+    public void onAiModeSync(UUID maidUUID, ResourceLocation registryId, ResourceLocation selectedId, boolean clear) {
+        if (clear) {
+            Map<ResourceLocation, ResourceLocation> modes = pendingModeSync.get(maidUUID);
+            if (modes != null) {
+                modes.remove(registryId);
+            }
+            pendingModeRemovals.computeIfAbsent(maidUUID, k -> new java.util.HashSet<>()).add(registryId);
+        } else {
+            pendingModeSync.computeIfAbsent(maidUUID, k -> new HashMap<>()).put(registryId, selectedId);
+            java.util.Set<ResourceLocation> removals = pendingModeRemovals.get(maidUUID);
+            if (removals != null) {
+                removals.remove(registryId);
+            }
+        }
 
         // 同步更新客户端实体 NBT，确保持久一致
         Minecraft mc = Minecraft.getInstance();
         if (mc.level != null) {
             for (Entity entity : mc.level.entitiesForRendering()) {
                 if (entity.getUUID().equals(maidUUID) && entity instanceof EntityMaid maid) {
-                    MaidSmarterState.setModeId(maid, registryId, selectedId);
+                    if (clear) {
+                        MaidSmarterState.removeModeId(maid, registryId);
+                    } else {
+                        MaidSmarterState.setModeId(maid, registryId, selectedId);
+                    }
                     return;
                 }
             }
@@ -128,5 +197,6 @@ public final class SmarterClientState {
         if (maidUUID == null) return;
         pendingSmarterSync.remove(maidUUID);
         pendingModeSync.remove(maidUUID);
+        pendingModeRemovals.remove(maidUUID);
     }
 }

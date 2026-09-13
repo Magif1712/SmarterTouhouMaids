@@ -36,9 +36,8 @@ public final class NetworkHandler {
         // === 附身包（smarter 的模式，统一注册一次）===
         int index = 0;
         index = PossessionNetwork.registerPackets(INSTANCE, index);
-        // === 代理分支索引段（各包自带贡献，依次分配）===
+        // === 代理分支索引段（合并后单一代理分支，P4 去重）===
         index = AgentNetwork.registerPackets(INSTANCE, index);
-        index = com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent_original.AgentNetwork.registerPackets(INSTANCE, index);
 
         // === smarter 通用包（与代理无关）===
         INSTANCE.registerMessage(index++, ServerboundSetSmarterModePacket.class,

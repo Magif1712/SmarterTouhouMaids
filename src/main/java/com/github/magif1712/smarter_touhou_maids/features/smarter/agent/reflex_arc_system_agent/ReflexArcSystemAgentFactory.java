@@ -6,20 +6,13 @@ import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.AgentFac
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.IAgent;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.param.ParamOption;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.param.ParamPanelProvider;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.SaveSlot;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.AiFactory;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.ai.IAiSystem;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.effector.EffectorFactory;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.effector.IEffector;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.ISensor;
 import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.SensorFactory;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.sensor.possession_sensor.PossessionSensorFactory;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.Registry;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryEntry;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryIds;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.registry.RegistryManager;
-import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
-import net.minecraft.nbt.CompoundTag;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.AssemblyContext;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.OutSlot;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
@@ -55,43 +48,20 @@ public class ReflexArcSystemAgentFactory implements AgentFactory, ParamPanelProv
             new ResourceLocation(SmarterTouhouMaids.MOD_ID, "smarter");
 
     @Override
-    public IAgent create(CompoundTag config, EntityMaid maid, SaveSlot slot) {
-        // === 查 AiRegistry 取下层 ai factory（自驱组装 process/nn）===
-        // 新版代理用 AI_SMARTER（独立 registry，只含 urana——与原初代理隔离，
-        // 避免跨代理流程选择导致的不兼容组合）
-        Registry<?> aiRegistry = RegistryManager.INSTANCE.get(RegistryIds.AI_SMARTER);
-        RegistryEntry<?> aiEntry = aiRegistry.resolve(config.getString(RegistryIds.AI_SMARTER.toString()));
-        AiFactory aiFactory = (AiFactory) aiEntry.getFactory();
-        // 下层 ai factory 自驱组装其内部 process/nn（config + maid + slot 透传，各层各取所需）
-        IAiSystem ai = aiFactory.create(config, maid, slot);
+    public void create(AssemblyContext ctx, /*->*/ OutSlot<IAgent> out) {
+        // === 子实例来自 Resolver（本分支声明的 children：ai/sensor/effector）===
+        // ai 由 AI 链自下而上装好（process/mapper/nn 各层自驱，本工厂不感知）。
+        IAiSystem ai = ctx.child("ai", IAiSystem.class);
 
-        // === 查 SensorRegistry 取下层 sensor factory（叶子，无递归）===
-        Registry<?> sensorRegistry = RegistryManager.INSTANCE.get(RegistryIds.SENSOR);
-        // sensor 选择：config 显式选择时用之；缺失/空时回退本代理的默认 sensor
-        // （on_demand_possession_sensor，采集/解码分离的拉模型版），不依赖 registry 默认 entry
-        // （那是原初代理的默认 possession_sensor，与本代理的 ai 链载体不配）——
-        // 每个 agent 工厂自知其兼容默认（真善美第4条：默认选择实在化为工厂常量）。
-        String sensorIdStr = config.getString(RegistryIds.SENSOR.toString());
-        RegistryEntry<?> sensorEntry = (sensorIdStr == null || sensorIdStr.isEmpty())
-                ? sensorRegistry.get(PossessionSensorFactory.SENSOR_ID)
-                : sensorRegistry.resolve(sensorIdStr);
-        if (sensorEntry == null) {
-            throw new IllegalStateException(
-                    "本代理默认感受器未注册: " + PossessionSensorFactory.SENSOR_ID);
-        }
-        SensorFactory sensorFactory = (SensorFactory) sensorEntry.getFactory();
-        // feelingSize 由 ai.feelingSize() 算出传入（尺寸是 ai 层 Domain 知识）
+        // === provider 模式：sensor/effector 插槽产物是工厂提供者，实例化需要跨兄弟参数
+        //     （feelingSize/behaviorSize 是 ai 层 Domain 知识）——由本工厂带参实例化 ===
+        SensorFactory sensorFactory = ctx.child("sensor", SensorFactory.class);
         ISensor sensor = sensorFactory.create(ai.feelingSize());
-
-        // === 查 EffectorRegistry 取下层 effector factory（叶子，无递归）===
-        Registry<?> effectorRegistry = RegistryManager.INSTANCE.get(RegistryIds.EFFECTOR);
-        RegistryEntry<?> effectorEntry = effectorRegistry.resolve(config.getString(RegistryIds.EFFECTOR.toString()));
-        EffectorFactory effectorFactory = (EffectorFactory) effectorEntry.getFactory();
-        // behaviorSize 由 ai.behaviorSize() 算出传入（尺寸是 ai 层 Domain 知识）
+        EffectorFactory effectorFactory = ctx.child("effector", EffectorFactory.class);
         IEffector effector = effectorFactory.create(ai.behaviorSize());
 
         // 三注入构造（ReflexArcSystemAgent 只直接用 ai/sensor/effector，不感知 process/nn/vision/muscle）
-        return new ReflexArcSystemAgent(ai, sensor, effector);
+        out.set(new ReflexArcSystemAgent(ai, sensor, effector));
     }
 
     @Override
