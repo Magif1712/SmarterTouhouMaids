@@ -38,10 +38,17 @@ public class UranaState {
     public final VectorBase retrospectiveInheritance;
     public final VectorBase introspectiveInheritance;
 
-    // 传承 tC ×3（首轮清零；tC 绝不跨环共享）
+    // 传承槽 tC ×3（首轮清零；tC 绝不跨环共享）——gradCellOp 的 buftC/buftCSelf：
+    // 两阶段 bw 的目标源，轮末写回；跨轮持存（落盘 urana/*_tC.bin）。
     public final VectorBase prospectiveTC;
     public final VectorBase retrospectiveTC;
     public final VectorBase introspectiveTC;
+
+    // C2 槽 ×3（首轮清零）——gradCellOp 的 tC/tCSelf：阶段一 bw 的外拷落点 ⇒ 阶段二 fw 的起始 C。
+    // 轮内草稿：每轮整体重写，不跨轮、不落盘（与传承槽分离，传承才不会被阶段一覆盖）。
+    public final VectorBase prospectiveC2;
+    public final VectorBase retrospectiveC2;
+    public final VectorBase introspectiveC2;
 
     // 工作草稿（快环）
     public final VectorBase fastY;
@@ -90,9 +97,9 @@ public class UranaState {
         mapper.zeroVector(0L /* -> */, this.retrospectiveInheritance);
         mapper.zeroVector(0L /* -> */, this.introspectiveInheritance);
 
-        // 传承 tC ×3（首轮清零）
+        // 传承槽 tC ×3（首轮清零）
         // tC 用前向载体（createVector）而非梯度载体（createGradientVector）——
-        // 伪代码 grad_cell_op.py 中 tC 兼任 fw 的 C 输入（前向）与 bw 的 buf_tC 出参（梯度外拷），
+        // 伪代码 grad_cell_op.py 中 tC 兼任 fw 的 C 输入（前向）与 bw 的 tCSelf 出参（梯度外拷），
         // CNN 下两者同体（FloatVector）无矛盾；BNN 下前向=BoolVector、梯度=IntVector 不兼容，
         // 故 tC 统一用前向载体，BNN backward 写 bufTc 时用 negateAndBinarize 把 IntVector 梯度
         // 转成 BoolVector 前向（与原初代理 gradientToInput 同款 bit 转换，藏于 nn 家族内核）。
@@ -102,6 +109,14 @@ public class UranaState {
         mapper.zeroVector(0L /* -> */, this.prospectiveTC);
         mapper.zeroVector(0L /* -> */, this.retrospectiveTC);
         mapper.zeroVector(0L /* -> */, this.introspectiveTC);
+
+        // C2 槽 ×3（首轮清零；轮内草稿，与传承槽同为前向载体）
+        this.prospectiveC2 = mapper.createVector(this.cLen);
+        this.retrospectiveC2 = mapper.createVector(this.cLen);
+        this.introspectiveC2 = mapper.createVector(this.cLen);
+        mapper.zeroVector(0L /* -> */, this.prospectiveC2);
+        mapper.zeroVector(0L /* -> */, this.retrospectiveC2);
+        mapper.zeroVector(0L /* -> */, this.introspectiveC2);
 
         // 工作草稿（快环）
         this.fastY = mapper.createVector(outputDomain.totalLength());

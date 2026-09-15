@@ -20,7 +20,7 @@ import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_a
  */
 public class CnnTrainingOps {
 
-    public static void cnnBackwardLayer(CnnFwTraceForBw trace, FloatVector y, CnnHyperparameters hp, FloatVector target, long stream /* -> */, FloatVector x, FloatVector dz, FloatVector dInput, FloatVector bufTc, CnnHyperparameters bufHp, float lr) {
+    public static void cnnBackwardLayer(CnnFwTraceForBw trace, FloatVector y, CnnHyperparameters hp, FloatVector target, FloatVector x, float lr, long stream /* -> */, FloatVector dz, FloatVector dInput, FloatVector bufTc, CnnHyperparameters bufHp) {
         if (bufHp.getSizeA0() != hp.getSizeA0() || bufHp.getSizeA1() != hp.getSizeA1()) {
             throw new IllegalArgumentException("buf_hp 与 hp 结构不一致，无法跨 NN 更新权重。");
         }

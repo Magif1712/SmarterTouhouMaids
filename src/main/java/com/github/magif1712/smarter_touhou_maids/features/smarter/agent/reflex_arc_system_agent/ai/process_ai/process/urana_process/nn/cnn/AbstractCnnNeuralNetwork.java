@@ -122,7 +122,7 @@ public abstract class AbstractCnnNeuralNetwork implements INeuralNetwork {
      * 零 CUDA 调用：纯 host memcpy 读 mapped pinned memory，不 flush WDDM 命令缓冲。
      */
     @Override
-    public void readBehaviorTo(VectorBase behaviorBuffer, int[] dst, long stream) {
+    public void readBehaviorTo(VectorBase behaviorBuffer, long stream /* -> */, int[] dst) {
         if (!(behaviorBuffer instanceof FloatVector fv)) {
             throw new IllegalArgumentException("CNN readBehaviorTo requires FloatVector");
         }
@@ -187,9 +187,9 @@ public abstract class AbstractCnnNeuralNetwork implements INeuralNetwork {
     }
 
     @Override
-    public void backward(Object fwTraceForBw, VectorBase y, VectorBase t, long stream /* -> */, VectorBase bufTc, Object bufHp) {
+    public void backward(VectorBase bufTc, Object bufHp /* <- */, Object fwTraceForBw, VectorBase y, VectorBase t, long stream) {
         CnnHyperparameters hp = networkData.getHyperparameters();
-        CnnTrainingOps.cnnBackwardLayer((CnnFwTraceForBw) fwTraceForBw, (FloatVector) y, hp, target.getVector(), stream /* -> */, io.getInput().getVector(), gradients.getDzWorkspace(), gradients.getInputLayerGradient().getVector(), (FloatVector) bufTc, (CnnHyperparameters) bufHp, CNN_LEARNING_RATE);
+        CnnTrainingOps.cnnBackwardLayer((CnnFwTraceForBw) fwTraceForBw, (FloatVector) y, hp, target.getVector(), io.getInput().getVector(), CNN_LEARNING_RATE, stream /* -> */, gradients.getDzWorkspace(), gradients.getInputLayerGradient().getVector(), (FloatVector) bufTc, (CnnHyperparameters) bufHp);
     }
 
     @Override
@@ -220,7 +220,7 @@ public abstract class AbstractCnnNeuralNetwork implements INeuralNetwork {
     }
 
     @Override
-    public void gradientToInput(/* <- */ VectorBase gradC, VectorBase inputC, long stream) {
+    public void gradientToInput(VectorBase gradC, long stream /* -> */, VectorBase inputC) {
         // TODO 待 C 侧/设计落地
     }
 

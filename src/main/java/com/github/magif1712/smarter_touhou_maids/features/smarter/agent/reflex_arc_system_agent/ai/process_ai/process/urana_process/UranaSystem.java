@@ -82,7 +82,7 @@ public class UranaSystem implements IProcessSystem {
         this.periodicPostSaveAction = postSaveAction != null ? postSaveAction : () -> {};
     }
 
-    private void maybePeriodicSave() {
+    private void maybePeriodicSave(/* <- */) {
         long now = System.currentTimeMillis();
         if (lastPeriodicSaveMs == 0) {
             lastPeriodicSaveMs = now;
@@ -143,13 +143,13 @@ public class UranaSystem implements IProcessSystem {
     }
 
     @Override
-    public void save(SaveSlot slot) {
+    public void save(/* <- */ SaveSlot slot) {
         if (slot == null) return;
         stopWorkersForSave(/* <- */);
         saveToDisk(slot);
     }
 
-    private void stopWorkersForSave() {
+    private void stopWorkersForSave(/* <- */) {
         if (!running) return;
         running = false;
         joinWorker(fastWorkerThread);
@@ -165,16 +165,16 @@ public class UranaSystem implements IProcessSystem {
         s.retrospectiveAncSlider.load(/* <- */ uranaPath, "retrospective");
         s.introspectiveAncSlider.load(/* <- */ uranaPath, "introspective");
 
-        loadVector(s.prospectiveInheritance, uranaPath, "prospective_inheritance.bin", false);
-        loadVector(s.retrospectiveInheritance, uranaPath, "retrospective_inheritance.bin", false);
-        loadVector(s.introspectiveInheritance, uranaPath, "introspective_inheritance.bin", false);
+        loadVector(uranaPath, "prospective_inheritance.bin", false, s.prospectiveInheritance);
+        loadVector(uranaPath, "retrospective_inheritance.bin", false, s.retrospectiveInheritance);
+        loadVector(uranaPath, "introspective_inheritance.bin", false, s.introspectiveInheritance);
         // tC 用前向载体（createVector），故 load 用 loadVector 而非 loadGradientVector
-        loadVector(s.prospectiveTC, uranaPath, "prospective_tC.bin", false);
-        loadVector(s.retrospectiveTC, uranaPath, "retrospective_tC.bin", false);
-        loadVector(s.introspectiveTC, uranaPath, "introspective_tC.bin", false);
+        loadVector(uranaPath, "prospective_tC.bin", false, s.prospectiveTC);
+        loadVector(uranaPath, "retrospective_tC.bin", false, s.retrospectiveTC);
+        loadVector(uranaPath, "introspective_tC.bin", false, s.introspectiveTC);
     }
 
-    private void loadVector(VectorBase target, String uranaPath, String fileName, boolean isGradient) {
+    private void loadVector(String uranaPath, String fileName, boolean isGradient, /* -> */ VectorBase target) {
         File f = new File(uranaPath, fileName);
         if (!f.exists()) return;
         VectorBase loaded = isGradient
@@ -203,7 +203,7 @@ public class UranaSystem implements IProcessSystem {
     }
 
     @Override
-    public void setRefreshRequest(RefreshRequest feelingRefresh) {
+    public void setRefreshRequest(/* <- */ RefreshRequest feelingRefresh) {
         this.feelingRefresh = feelingRefresh;
     }
 
@@ -235,7 +235,7 @@ public class UranaSystem implements IProcessSystem {
         }
     }
 
-    private void runFastLoop() {
+    private void runFastLoop(/* <- */) {
         long lastFastRunNanos = 0;
         while (running && !Thread.currentThread().isInterrupted()) {
             long now = System.nanoTime();
@@ -272,7 +272,7 @@ public class UranaSystem implements IProcessSystem {
         }
     }
 
-    private void runSlowLoop() {
+    private void runSlowLoop(/* <- */) {
         long lastRunStartNanos = 0;
         while (running && !Thread.currentThread().isInterrupted()) {
             // CPU 守卫（照搬原初代理）：快环尚未产出痕迹时跳过本轮，
@@ -357,8 +357,8 @@ public class UranaSystem implements IProcessSystem {
     }
 
     @Override
-    public void readBehaviorTo(VectorBase behaviorBuffer, int[] dst, long stream) {
-        mapper.readBehaviorTo(behaviorBuffer, dst, stream);
+    public void readBehaviorTo(VectorBase behaviorBuffer, long stream /* -> */, int[] dst) {
+        mapper.readBehaviorTo(behaviorBuffer, stream /* -> */, dst);
     }
 
     private Span fullSpan(VectorBase v) {
@@ -379,6 +379,10 @@ public class UranaSystem implements IProcessSystem {
         if (s.prospectiveTC != null) s.prospectiveTC.close();
         if (s.retrospectiveTC != null) s.retrospectiveTC.close();
         if (s.introspectiveTC != null) s.introspectiveTC.close();
+        if (s.prospectiveC2 != null) s.prospectiveC2.close();
+        if (s.retrospectiveC2 != null) s.retrospectiveC2.close();
+        if (s.introspectiveC2 != null) s.introspectiveC2.close();
+
 
         // 工作草稿（fastBufC/fastBufF/slowBufC 已移入 mapper 内部，由 mapper.close() 释放）
         if (s.fastY != null) s.fastY.close();

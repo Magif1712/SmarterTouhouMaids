@@ -47,7 +47,7 @@ public interface IProcessSystem extends AutoCloseable {
      * @param visionEvent    视觉采集完成事件，由外部创建并在视觉采集后 record。意识体跨流等待。非意识体所有。
      * @param behaviorChannel 行为产出通道，由外周创建注入。意识体只用其 producer 面。非意识体所有。
      */
-    void awaken(VectorBase feelingBuffer, Event visionEvent, MappedGenerationBuffer behaviorChannel);
+    void awaken(/* <- */ VectorBase feelingBuffer, Event visionEvent, MappedGenerationBuffer behaviorChannel);
 
     /**
      * 注入感觉刷新请求（拉模型，可选能力）。
@@ -65,7 +65,7 @@ public interface IProcessSystem extends AutoCloseable {
     /**
      * 关闭意识体，停止工作线程并释放所有资源。
      */
-    void shutdown();
+    void shutdown(/* <- */);
 
     /**
      * 将意识体核心状态序列化到磁盘（在 shutdown 释放显存前调用）。
@@ -79,14 +79,14 @@ public interface IProcessSystem extends AutoCloseable {
      *
      * @param slot 持久化槽位。
      */
-    void save(SaveSlot slot);
+    void save(/* <- */ SaveSlot slot);
 
     /**
      * dt 调试开关：开启时每轮输出轮间时间间隔到日志。关闭时零性能损失。
      * <p>
      * dt 的语义（几个环、间隔含义）由实现自管；本方法只控制通用诊断开关。
      */
-    void setDtDebugEnabled(boolean enabled);
+    void setDtDebugEnabled(/* <- */ boolean enabled);
 
     /**
      * 意识体所需的感觉输入尺寸（外周据此创建 feelingBuffer）。
@@ -133,7 +133,7 @@ public interface IProcessSystem extends AutoCloseable {
      * 行为读取（可选能力，default 委托链的 process 段）。
      * 把行为缓冲区载体数据读出为 int[]（effector 期望的 bit-packed 格式）。
      */
-    default void readBehaviorTo(VectorBase behaviorBuffer, int[] dst, long stream) {
+    default void readBehaviorTo(VectorBase behaviorBuffer, long stream /* -> */, int[] dst) {
         throw new UnsupportedOperationException(
                 "此流程未发布行为读取契约（如旧版 urana_original 不适用于 smarter 代理）；请改用 urana 流程或 smarter_original 代理");
     }

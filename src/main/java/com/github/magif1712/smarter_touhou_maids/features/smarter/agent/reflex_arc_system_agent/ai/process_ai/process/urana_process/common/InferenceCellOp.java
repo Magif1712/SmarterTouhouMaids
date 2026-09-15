@@ -18,18 +18,18 @@ public final class InferenceCellOp {
     private InferenceCellOp() {
     }
 
-    public static void inferenceCellOp(FittableMapper mapper, int N, boolean[][] G_seq, long dt,
+    public static void inferenceCellOp(FittableMapper mapper, int N, boolean[][] gSeq, long dt,
                                        VectorBase initialC, VectorBase initialF, long stream /* -> */,
-                                       VectorBase y, VectorBase buf_x) {
-        fw(mapper, N, G_seq, dt, initialC, initialF, stream /* -> */, buf_x, y);
+                                       VectorBase y, VectorBase bufX) {
+        fw(mapper, N, gSeq, dt, initialC, initialF, stream /* -> */, bufX, y);
     }
 
-    private static void fw(FittableMapper mapper, int N, boolean[][] G_seq, long dt,
+    private static void fw(FittableMapper mapper, int N, boolean[][] gSeq, long dt,
                            VectorBase C, VectorBase F, long stream /* -> */,
-                           VectorBase buf_x, VectorBase y) {
+                           VectorBase bufX, VectorBase y) {
         for (int i = 0; i < N; i++) {
-            mapper.assembleX(C, F, G_seq[i], dt, stream /* -> */, buf_x);
-            mapper.fw(buf_x, stream /* -> */, y, null);
+            mapper.assembleX(C, F, gSeq[i], dt, stream /* -> */, bufX);
+            mapper.fw(bufX, stream /* -> */, y, null);
             C = mapper.extractC(y, stream);
             F = mapper.extractF(y, stream);
         }

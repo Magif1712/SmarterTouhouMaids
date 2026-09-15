@@ -126,6 +126,28 @@ add_library(stm_ai SHARED
   src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn/mapping/gradient/gradient_ops.cu
   src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn/mapping/gradient/gradient_ops.h
 
+  # CNN-Active 家族（nn/cnn_active/mapping/，独立演化的新活性 CNN；共享 stm_ai 但自有 mechanism）
+  # Init Ops Component (D1/D3 对称零均值填充: (u01*2-1)*bound)
+  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/init/interop/init_ops_jni.cpp
+  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/init/interop/init_ops_bridge.cu
+  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/init/interop/init_ops_bridge.h
+  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/init/init_ops.cu
+  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/init/init_ops.h
+
+  # CNN-Active Inference Ops Component (前向 + activationId + prevB 块内模环 + refresh_cache)
+  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/inference/interop/inference_ops_jni.cpp
+  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/inference/interop/inference_ops_bridge.cu
+  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/inference/interop/inference_ops_bridge.h
+  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/inference/inference_ops.cu
+  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/inference/inference_ops.h
+
+  # CNN-Active Gradient Ops Component (两阶段反向: 奇激活导数 + prevB 邻域 + 输入梯度守卫)
+  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/gradient/interop/gradient_ops_jni.cpp
+  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/gradient/interop/gradient_ops_bridge.cu
+  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/gradient/interop/gradient_ops_bridge.h
+  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/gradient/gradient_ops.cu
+  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/gradient/gradient_ops.h
+
   # Vision Component（采集/解码分离后仅剩 kernel：launchUnpackKernel 供 fittable_mapper 解码器调用）
   src/features/smarter/agent/reflex_arc_system_agent/sensor/possession_sensor/vision/cuda_gl_vision.cu
   src/features/smarter/agent/reflex_arc_system_agent/sensor/possession_sensor/vision/cuda_gl_vision.h

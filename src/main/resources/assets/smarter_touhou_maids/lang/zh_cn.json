@@ -64,5 +64,14 @@
   "option.smarter_touhou_maids.save_interval_seconds": "保存间隔（秒）",
   "option.smarter_touhou_maids.save_interval_seconds.tooltip": "每隔 N 秒自动保存一次（防止崩溃丢数据）\n建议 30 左右\n仅当定时持久化开关开启时生效",
   "option.smarter_touhou_maids.max_retention": "最大保留版本数",
-  "option.smarter_touhou_maids.max_retention.tooltip": "每个女仆保留多少个历史版本\n超出时自动删除最老的版本\n仅当持久化开关开启时生效"
+  "option.smarter_touhou_maids.max_retention.tooltip": "每个女仆保留多少个历史版本\n超出时自动删除最老的版本\n仅当持久化开关开启时生效",
+  "mode.smarter_touhou_maids.mapper.cnn_active_mapper": "活性映射器（对称初始化 / 奇激活）",
+  "mode.smarter_touhou_maids.nn.cnn_active": "活性卷积神经网络",
+  "mode.smarter_touhou_maids.registry.cnn_active_mapper_nn": "网络层",
+  "option.smarter_touhou_maids.cnn_active_activation": "激活函数",
+  "option.smarter_touhou_maids.cnn_active_activation.tooltip": "1 = tanh（推荐：软饱和，|z| 大时仍能学）\n2 = clipped-linear（无超越函数，但 |z| ≥ 1 处导数硬零 ⟹ 该单元永久不学）\nsigmoid 不在可选范围内：值域 (0,1) 无法表示有符号的 C 段 target（占输出 75%）\n判决阈值固定为 0（两种合法激活共用），不可独立调整",
+  "option.smarter_touhou_maids.cnn_active_init_bound_w": "权重初始化半径 (q/l/r)",
+  "option.smarter_touhou_maids.cnn_active_init_bound_w.tooltip": "q/l/r 的对称零均值初始化半径，必须 > 0\n前向 z 大致落在 (−3×半径, 3×半径)，据此选值使 tanh 不饱和\n仅在「新建（无存档权重）」时生效；加载已有权重时保留磁盘上的符号域",
+  "option.smarter_touhou_maids.cnn_active_init_bound_b": "偏置初始化半径 (b)",
+  "option.smarter_touhou_maids.cnn_active_init_bound_b.tooltip": "b 的对称零均值初始化半径，必须 > 0\n与权重半径共同决定 z 的量级\n仅在「新建（无存档权重）」时生效"
 }

@@ -42,7 +42,7 @@ public interface IAiSystem extends AutoCloseable {
      * @param visionEvent    视觉采集完成事件，由外部创建并在视觉采集后 record。ai 跨流等待。非 ai 所有。
      * @param behaviorChannel 行为产出通道，由外周创建注入。ai 只用其 producer 面。非 ai 所有。
      */
-    void awaken(VectorBase feelingBuffer, Event visionEvent, MappedGenerationBuffer behaviorChannel);
+    void awaken(/* <- */ VectorBase feelingBuffer, Event visionEvent, MappedGenerationBuffer behaviorChannel);
 
     /**
      * 注入感觉刷新请求（拉模型，可选能力）。
@@ -60,7 +60,7 @@ public interface IAiSystem extends AutoCloseable {
     /**
      * 关闭 ai，停止运转并释放所有资源。
      */
-    void shutdown();
+    void shutdown(/* <- */);
 
     /**
      * 将 ai 核心状态序列化到磁盘（在 shutdown 释放显存前调用）。
@@ -70,14 +70,14 @@ public interface IAiSystem extends AutoCloseable {
      *
      * @param slot 持久化槽位（各层用 {@link SaveSlot#layerPath(String)} 问自己的目录）。
      */
-    void save(SaveSlot slot);
+    void save(/* <- */ SaveSlot slot);
 
     /**
      * dt 调试开关：开启时输出轮间时间间隔到日志。关闭时零性能损失。
      * <p>
      * dt 的语义（几个环、间隔含义）由实现自管；本方法只控制通用诊断开关。
      */
-    void setDtDebugEnabled(boolean enabled);
+    void setDtDebugEnabled(/* <- */ boolean enabled);
 
     /**
      * ai 所需的感觉输入尺寸（外周据此创建 feelingBuffer）。
@@ -123,7 +123,7 @@ public interface IAiSystem extends AutoCloseable {
      * 把行为缓冲区载体数据读出为 int[]（effector 期望的 bit-packed 格式）。
      * agent 调此方法读 behavior 到 scratch，交效应器解码。
      */
-    default void readBehaviorTo(VectorBase behaviorBuffer, int[] dst, long stream) {
+    default void readBehaviorTo(VectorBase behaviorBuffer, long stream /* -> */, int[] dst) {
         throw new UnsupportedOperationException("此 ai 未发布行为读取契约（readBehaviorTo）");
     }
 }

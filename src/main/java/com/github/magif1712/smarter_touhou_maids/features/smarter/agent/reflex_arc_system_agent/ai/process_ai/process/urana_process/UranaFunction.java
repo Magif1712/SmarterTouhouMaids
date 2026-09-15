@@ -16,8 +16,8 @@ import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_a
  * 遗传信息、传承 tC、工作草稿等"事物"由调用方（UranaSystem）持有并注入。
  * 本文件不 import os / Event / AncSlider——算法文件只知道过程，不知道事物。
  * <p>
- * state（入参，被读）与 bufState（出参，被写）是同一对象在调用点的两位注入——原地转移，
- * 类比 bw 的 tC/buf_tC 双占（设计原则第5条：DPS 分离入参/出参）。
+ * state（入参，被读）与 stateSelf（出参，被写）是同一对象在调用点的两位注入——原地转移，
+ * 出参槽按原则6 命名为「原名 + Self」，与 bw 的 tC/tCSelf 双占同构（设计原则第5条：DPS 分离入参/出参）。
  * <p>
  * 方向标记用 /* -&gt; *&#47; 注释（设计原则第5条）：左边入参，右边出参。
  * <p>
@@ -37,17 +37,17 @@ public final class UranaFunction {
      * 三缓冲 record 等系统层模式（真善美第2条：上层模式不塞进下层算子）。
      * 调用方（UranaSystem.runFastLoop）负责节律控制与外周输出。
      */
-    public static void fastTick(FittableMapper mapper, UranaState state, VectorBase currentFeeling, long dtMillis, Stream fastStream /* -> */, UranaState bufState) {
+    public static void fastTick(FittableMapper mapper, UranaState state, VectorBase currentFeeling, long dtMillis, Stream fastStream /* -> */, UranaState stateSelf) {
         long stream = fastStream.getHandle();
 
         // 前瞻推理：N=2，[G_FUTURE_N, G_PAST_N]——向未来 n 刻再反推回现在
-        InferenceCellOp.inferenceCellOp(mapper, 2, new boolean[][]{UranaConstants.G_FUTURE_N, UranaConstants.G_PAST_N}, dtMillis, state.prospectiveInheritance, currentFeeling, stream /* -> */, bufState.fastY, bufState.fastBufX);
+        InferenceCellOp.inferenceCellOp(mapper, 2, new boolean[][]{UranaConstants.G_FUTURE_N, UranaConstants.G_PAST_N}, dtMillis, state.prospectiveInheritance, currentFeeling, stream /* -> */, stateSelf.fastY, stateSelf.fastBufX);
 
         // 行动者工作记忆更新（快环独占）
-        bufState.prospectiveInheritance.copyRegionFrom(/* <- */ state.fastY, state.outputDomain.getInheritanceInfoSpan(), new Span(0, state.cLen) {}, stream);
+        stateSelf.prospectiveInheritance.copyRegionFrom(/* <- */ state.fastY, state.outputDomain.getInheritanceInfoSpan(), new Span(0, state.cLen) {}, stream);
 
         // 快环职责：更新悬浮物锚点——本拍感觉 + 本拍推理行为，构成完整时刻
-        bufState.prospectiveAncSlider.pushSuspensionFrom(/* <- */ currentFeeling, state.fastY, stream, state.outputDomain);
+        stateSelf.prospectiveAncSlider.pushSuspensionFrom(/* <- */ currentFeeling, state.fastY, stream, state.outputDomain);
     }
 
     /**
@@ -56,31 +56,34 @@ public final class UranaFunction {
      * 节律控制（waitEvent + CPU 守卫）移至 {@link UranaSystem#runSlowLoop}——
      * 算子只管计算，系统层负责节律（真善美第2条：上层模式不塞进下层算子）。
      */
-    public static void slowTick(FittableMapper mapper, UranaState state, long dtMillis, Stream uranaStream /* -> */, UranaState bufState, FittableMapper bufMapper) {
+    public static void slowTick(FittableMapper mapper, UranaState state, long dtMillis, Stream uranaStream /* -> */, UranaState stateSelf, FittableMapper mapperSelf) {
         long stream = uranaStream.getHandle();
 
         // 滑动锚点（waitEvent 已在 UranaSystem.runSlowLoop 中完成）
-        bufState.prospectiveAncSlider.tick(/* <- */);
+        stateSelf.prospectiveAncSlider.tick(/* <- */);
 
-        // 前瞻梯度（prospective）：推理朝未来，校准朝过去 G_PAST_1；anc_seq=[Susp, Prec]；传承 prospectiveTC
-        GradCellOp.gradCellOp(mapper, 1, new boolean[][]{UranaConstants.G_PAST_1}, dtMillis, new Anc[]{state.prospectiveAncSlider.getSuspensionAnc(), state.prospectiveAncSlider.getPrecipitateAnc()}, state.prospectiveTC, stream /* -> */, bufState.slowYs, bufState.slowFwTraces, bufState.slowBufX, bufState.buf_t, bufState.prospectiveTC, bufMapper);
+        // 前瞻梯度（prospective）：推理朝未来，校准朝过去 G_PAST_1；ancSeq=[Susp, Prec]；
+        // C2 槽 prospectiveC2（阶段一前清零当零种子）、传承槽 prospectiveTC
+        GradCellOp.gradCellOp(mapper, 1, new boolean[][]{UranaConstants.G_PAST_1}, dtMillis, new Anc[]{state.prospectiveAncSlider.getSuspensionAnc(), state.prospectiveAncSlider.getPrecipitateAnc()}, state.prospectiveC2, state.prospectiveTC, stream /* -> */, stateSelf.slowYs, stateSelf.slowFwTraces, stateSelf.slowBufX, stateSelf.buf_t, stateSelf.prospectiveC2, mapperSelf, stateSelf.prospectiveTC);
 
         // 回溯推理：从现在（Susp）向过去推理一刻 G_PAST_1
-        InferenceCellOp.inferenceCellOp(mapper, 1, new boolean[][]{UranaConstants.G_PAST_1}, dtMillis, state.retrospectiveInheritance, state.retrospectiveAncSlider.getSuspensionAnc().F, stream /* -> */, bufState.slowYs[0], bufState.slowBufX);
-        bufState.retrospectiveAncSlider.tick(/* <- */);
-        bufState.retrospectiveAncSlider.pushSuspensionFromOutput(/* <- */ state.slowYs[0], stream);
-        bufState.retrospectiveInheritance.copyRegionFrom(/* <- */ state.slowYs[0], state.outputDomain.getInheritanceInfoSpan(), new Span(0, state.cLen) {}, stream);
+        InferenceCellOp.inferenceCellOp(mapper, 1, new boolean[][]{UranaConstants.G_PAST_1}, dtMillis, state.retrospectiveInheritance, state.retrospectiveAncSlider.getSuspensionAnc().F, stream /* -> */, stateSelf.slowYs[0], stateSelf.slowBufX);
+        stateSelf.retrospectiveAncSlider.tick(/* <- */);
+        stateSelf.retrospectiveAncSlider.pushSuspensionFromOutput(/* <- */ state.slowYs[0], stream);
+        stateSelf.retrospectiveInheritance.copyRegionFrom(/* <- */ state.slowYs[0], state.outputDomain.getInheritanceInfoSpan(), new Span(0, state.cLen) {}, stream);
 
-        // 回溯梯度：推理朝过去，校准朝未来 G_FUTURE_1；anc_seq=[Prec, Susp]；传承 retrospectiveTC
-        GradCellOp.gradCellOp(mapper, 1, new boolean[][]{UranaConstants.G_FUTURE_1}, dtMillis, new Anc[]{state.retrospectiveAncSlider.getPrecipitateAnc(), state.retrospectiveAncSlider.getSuspensionAnc()}, state.retrospectiveTC, stream /* -> */, bufState.slowYs, bufState.slowFwTraces, bufState.slowBufX, bufState.buf_t, bufState.retrospectiveTC, bufMapper);
+        // 回溯梯度：推理朝过去，校准朝未来 G_FUTURE_1；ancSeq=[Prec, Susp]；
+        // C2 槽 retrospectiveC2（阶段一前清零当零种子）、传承槽 retrospectiveTC
+        GradCellOp.gradCellOp(mapper, 1, new boolean[][]{UranaConstants.G_FUTURE_1}, dtMillis, new Anc[]{state.retrospectiveAncSlider.getPrecipitateAnc(), state.retrospectiveAncSlider.getSuspensionAnc()}, state.retrospectiveC2, state.retrospectiveTC, stream /* -> */, stateSelf.slowYs, stateSelf.slowFwTraces, stateSelf.slowBufX, stateSelf.buf_t, stateSelf.retrospectiveC2, mapperSelf, stateSelf.retrospectiveTC);
 
         // 内省推理：以沉淀的过去（Prec）为起点想象未来 G_FUTURE_1
-        bufState.introspectiveAncSlider.pushPrecipitateFrom(/* <- */ state.retrospectiveAncSlider.getSuspensionAnc(), stream);
-        InferenceCellOp.inferenceCellOp(mapper, 1, new boolean[][]{UranaConstants.G_FUTURE_1}, dtMillis, state.introspectiveInheritance, state.introspectiveAncSlider.getPrecipitateAnc().F, stream /* -> */, bufState.slowYs[0], bufState.slowBufX);
-        bufState.introspectiveAncSlider.pushSuspensionFromOutput(/* <- */ state.slowYs[0], stream);
-        bufState.introspectiveInheritance.copyRegionFrom(/* <- */ state.slowYs[0], state.outputDomain.getInheritanceInfoSpan(), new Span(0, state.cLen) {}, stream);
+        stateSelf.introspectiveAncSlider.pushPrecipitateFrom(/* <- */ state.retrospectiveAncSlider.getSuspensionAnc(), stream);
+        InferenceCellOp.inferenceCellOp(mapper, 1, new boolean[][]{UranaConstants.G_FUTURE_1}, dtMillis, state.introspectiveInheritance, state.introspectiveAncSlider.getPrecipitateAnc().F, stream /* -> */, stateSelf.slowYs[0], stateSelf.slowBufX);
+        stateSelf.introspectiveAncSlider.pushSuspensionFromOutput(/* <- */ state.slowYs[0], stream);
+        stateSelf.introspectiveInheritance.copyRegionFrom(/* <- */ state.slowYs[0], state.outputDomain.getInheritanceInfoSpan(), new Span(0, state.cLen) {}, stream);
 
-        // 训练语境：[Prec, Susp, Prec]——从现在的 Prec 想象未来再反推现在；传承 introspectiveTC
-        GradCellOp.gradCellOp(mapper, 2, new boolean[][]{UranaConstants.G_FUTURE_N, UranaConstants.G_PAST_N}, dtMillis, new Anc[]{state.introspectiveAncSlider.getPrecipitateAnc(), state.introspectiveAncSlider.getSuspensionAnc(), state.introspectiveAncSlider.getPrecipitateAnc()}, state.introspectiveTC, stream /* -> */, bufState.slowYs, bufState.slowFwTraces, bufState.slowBufX, bufState.buf_t, bufState.introspectiveTC, bufMapper);
+        // 训练语境：[Prec, Susp, Prec]——从现在的 Prec 想象未来再反推现在；
+        // C2 槽 introspectiveC2（阶段一前清零当零种子）、传承槽 introspectiveTC
+        GradCellOp.gradCellOp(mapper, 2, new boolean[][]{UranaConstants.G_FUTURE_N, UranaConstants.G_PAST_N}, dtMillis, new Anc[]{state.introspectiveAncSlider.getPrecipitateAnc(), state.introspectiveAncSlider.getSuspensionAnc(), state.introspectiveAncSlider.getPrecipitateAnc()}, state.introspectiveC2, state.introspectiveTC, stream /* -> */, stateSelf.slowYs, stateSelf.slowFwTraces, stateSelf.slowBufX, stateSelf.buf_t, stateSelf.introspectiveC2, mapperSelf, stateSelf.introspectiveTC);
     }
 }

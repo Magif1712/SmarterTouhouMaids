@@ -925,7 +925,7 @@ public class UranaSystem implements IProcessSystem {
     }
 
     @Override
-    public void readBehaviorTo(VectorBase behaviorBuffer, int[] dst, long stream) {
+    public void readBehaviorTo(VectorBase behaviorBuffer, long stream /* -> */, int[] dst) {
         // 等价原旧 agent 的 behaviorChannel.readTo(scratch)：mapped 零拷贝读取，无 stream 语义。
         ((BoolVector) behaviorBuffer).readMappedToJava(dst);
     }

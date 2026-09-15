@@ -142,7 +142,7 @@ public abstract class AbstractBnnNeuralNetwork implements INeuralNetwork {
      * BNN 行为天然是 bit，无 float→bit 阈值化，effector 收到统一 int[]，接口零改动。
      */
     @Override
-    public void readBehaviorTo(VectorBase behaviorBuffer, int[] dst, long stream) {
+    public void readBehaviorTo(VectorBase behaviorBuffer, long stream /* -> */, int[] dst) {
         if (!(behaviorBuffer instanceof BoolVector bv)) {
             throw new IllegalArgumentException("BNN readBehaviorTo requires BoolVector");
         }
@@ -210,15 +210,18 @@ public abstract class AbstractBnnNeuralNetwork implements INeuralNetwork {
 
     /**
      * 适配新版 forward 签名：fwTraceForBw 非 null 时走 forwardStoreFz（训练前向，存 fz），
-     * 为 null 时走 forwardNoFz（纯推理）。x/y 参数忽略——IO 由 mapper 外层 copyToInput/copyFromOutput 处理
-     * （与 CNN 实现一致：CNN forward 也不用 x/y，直接操作 io）。
+     * 为 null 时走 forwardNoFz（纯推理）。
+     * <p>
+     * <b>结果落点 = 注入的 y</b>（原则6：接收者不是出参 ⇒ 用 `->`，显式出参排标记右侧）：
+     * 三族（原 CNN / CNN-Active / BNN）的 forward 都**只写注入缓冲**、不写自持状态，
+     * 故 mapper 侧无需 `copyFromOutput` 中转。「x 参数忽略」照旧（IO 输入由 mapper 外层 copyToInput 填）。
      */
     @Override
     public void forward(VectorBase x, long stream /* -> */, VectorBase y, Object fwTraceForBw) {
         if (fwTraceForBw != null) {
-            BnnNetworkProcessor.forwardStoreFz(networkData, io, (BoolVector) fwTraceForBw, stream);
+            BnnNetworkProcessor.forwardStoreFz(networkData, io, stream /* -> */, (BoolVector) y, (BoolVector) fwTraceForBw);
         } else {
-            BnnNetworkProcessor.forwardNoFz(networkData, io, stream);
+            BnnNetworkProcessor.forwardNoFz(networkData, io, stream /* -> */, (BoolVector) y);
         }
     }
 
@@ -237,7 +240,7 @@ public abstract class AbstractBnnNeuralNetwork implements INeuralNetwork {
      * 藏于 BNN 家族内核，urana 经接口只拿前向形态（真善美第2/3条）。
      */
     @Override
-    public void backward(Object fwTraceForBw, VectorBase y, VectorBase t, long stream /* -> */, VectorBase bufTc, Object bufHp) {
+    public void backward(VectorBase bufTc, Object bufHp /* <- */, Object fwTraceForBw, VectorBase y, VectorBase t, long stream) {
         try {
             BnnNetworkProcessor.backward(networkData, gradients, (BoolVector) fwTraceForBw, stream);
         } catch (Exception e) {
@@ -295,7 +298,7 @@ public abstract class AbstractBnnNeuralNetwork implements INeuralNetwork {
      * BNN 特定：negateAndBinarize（IntVector 梯度 → BoolVector 输入）。
      */
     @Override
-    public void gradientToInput(/* <- */ VectorBase gradC, VectorBase inputC, long stream) {
+    public void gradientToInput(VectorBase gradC, long stream /* -> */, VectorBase inputC) {
         BnnOps.negateAndBinarize((IntVector) gradC, (BoolVector) inputC, stream);
     }
 

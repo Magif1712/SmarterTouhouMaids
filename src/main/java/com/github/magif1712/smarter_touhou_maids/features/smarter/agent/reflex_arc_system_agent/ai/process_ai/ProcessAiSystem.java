@@ -65,12 +65,12 @@ public class ProcessAiSystem implements IAiSystem {
     }
 
     @Override
-    public void awaken(VectorBase feelingBuffer, Event visionEvent, MappedGenerationBuffer behaviorChannel) {
+    public void awaken(/* <- */ VectorBase feelingBuffer, Event visionEvent, MappedGenerationBuffer behaviorChannel) {
         process.awaken(feelingBuffer, visionEvent, behaviorChannel);
     }
 
     @Override
-    public void setRefreshRequest(RefreshRequest feelingRefresh) {
+    public void setRefreshRequest(/* <- */ RefreshRequest feelingRefresh) {
         process.setRefreshRequest(feelingRefresh);
     }
 
@@ -92,22 +92,22 @@ public class ProcessAiSystem implements IAiSystem {
     }
 
     @Override
-    public void readBehaviorTo(VectorBase behaviorBuffer, int[] dst, long stream) {
-        process.readBehaviorTo(behaviorBuffer, dst, stream);
+    public void readBehaviorTo(VectorBase behaviorBuffer, long stream /* -> */, int[] dst) {
+        process.readBehaviorTo(behaviorBuffer, stream /* -> */, dst);
     }
 
     @Override
-    public void shutdown() {
+    public void shutdown(/* <- */) {
         process.shutdown();
     }
 
     @Override
-    public void save(SaveSlot slot) {
+    public void save(/* <- */ SaveSlot slot) {
         process.save(slot);
     }
 
     @Override
-    public void setDtDebugEnabled(boolean enabled) {
+    public void setDtDebugEnabled(/* <- */ boolean enabled) {
         process.setDtDebugEnabled(enabled);
     }
 

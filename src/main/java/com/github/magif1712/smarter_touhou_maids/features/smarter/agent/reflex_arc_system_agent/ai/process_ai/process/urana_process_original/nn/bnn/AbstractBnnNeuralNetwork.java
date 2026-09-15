@@ -163,12 +163,12 @@ public abstract class AbstractBnnNeuralNetwork implements INeuralNetwork {
      */
     @Override
     public void forward(long stream) {
-        BnnNetworkProcessor.forwardNoFz(networkData_original, io_original, stream);
+        BnnNetworkProcessor.forwardNoFz(networkData_original, io_original, stream /* -> */, io_original.getA1());
     }
 
     @Override
     public void forwardForTraining(VectorBase fz, long stream) {
-        BnnNetworkProcessor.forwardStoreFz(networkData_original, io_original, (BoolVector) fz, stream);
+        BnnNetworkProcessor.forwardStoreFz(networkData_original, io_original, stream /* -> */, io_original.getA1(), (BoolVector) fz);
     }
 
     @Override

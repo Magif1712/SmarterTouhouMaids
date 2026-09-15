@@ -46,7 +46,7 @@ public interface INeuralNetwork extends AutoCloseable {
 
     void forward(VectorBase x, long stream /* -> */, VectorBase y, Object fwTraceForBw);
 
-    void backward(Object fwTraceForBw, VectorBase y, VectorBase t, long stream /* -> */, VectorBase bufTc, Object bufHp);
+    void backward(VectorBase bufTc, Object bufHp /* <- */, Object fwTraceForBw, VectorBase y, VectorBase t, long stream);
 
     Object getHyperparameters();
 
@@ -64,7 +64,7 @@ public interface INeuralNetwork extends AutoCloseable {
     /**
      * TODO 待 C 侧/设计落地。
      */
-    void gradientToInput(/* <- */ VectorBase gradC, VectorBase inputC, long stream);
+    void gradientToInput(VectorBase gradC, long stream /* -> */, VectorBase inputC);
 
     void injectOutputGradientFromInputGradient(/* <- */ Span region, long stream);
 
@@ -134,7 +134,7 @@ public interface INeuralNetwork extends AutoCloseable {
      * @param dst           接收 bit-packed 数据的 int[]（LSB-first，长度 >= ceil(behaviorLen/32)）。
      * @param stream        CUDA 流（同步用；mapped 模式可忽略，非 mapped 需 stream-aware D2H）。
      */
-    default void readBehaviorTo(VectorBase behaviorBuffer, int[] dst, long stream) {
+    default void readBehaviorTo(VectorBase behaviorBuffer, long stream /* -> */, int[] dst) {
         throw new UnsupportedOperationException("此 nn 家族未发布行为读取契约（readBehaviorTo）");
     }
 }

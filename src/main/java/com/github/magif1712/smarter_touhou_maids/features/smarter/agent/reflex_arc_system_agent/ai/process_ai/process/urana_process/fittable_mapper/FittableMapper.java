@@ -33,7 +33,7 @@ public interface FittableMapper extends AutoCloseable {
 
     void fw(VectorBase x, long stream /* -> */, VectorBase y, Object fwTraceForBw);
 
-    void bw(Object fwTraceForBw, VectorBase y, VectorBase t, long stream /* -> */, VectorBase bufTc, FittableMapper bufMapper);
+    void bw(VectorBase bufTc, FittableMapper bufMapper /* <- */, Object fwTraceForBw, VectorBase y, VectorBase t, long stream);
 
     void zeroGradient(long stream /* -> */, VectorBase gradVec);
 
@@ -136,7 +136,7 @@ public interface FittableMapper extends AutoCloseable {
      * 行为读取（可选能力，default 委托链的 mapper 段）。
      * 把行为缓冲区载体数据读出为 int[]（effector 期望的 bit-packed 格式）。
      */
-    default void readBehaviorTo(VectorBase behaviorBuffer, int[] dst, long stream) {
+    default void readBehaviorTo(VectorBase behaviorBuffer, long stream /* -> */, int[] dst) {
         throw new UnsupportedOperationException("此映射器未发布行为读取契约（readBehaviorTo）");
     }
 }

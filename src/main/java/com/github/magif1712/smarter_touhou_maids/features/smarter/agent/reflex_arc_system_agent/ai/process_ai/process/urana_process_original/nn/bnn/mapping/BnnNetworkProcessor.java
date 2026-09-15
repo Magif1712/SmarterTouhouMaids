@@ -11,7 +11,7 @@ import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_a
 
 public class BnnNetworkProcessor {
 
-    public static void forwardStoreFz(BnnNetworkData networkData, BnnIO io, BoolVector fz, long stream) {
+    public static void forwardStoreFz(BnnNetworkData networkData, BnnIO io, long stream /* -> */, BoolVector a_curr, BoolVector fz) {
         BnnHyperparameters hyperparameters = networkData.getHyperparameters();
         BnnInferenceOps.bnnForwardLayerStoreFz(
                 io.getA0(), // a_prev_pad
@@ -20,7 +20,7 @@ public class BnnNetworkProcessor {
                 hyperparameters.getL(),
                 hyperparameters.getR(),
                 hyperparameters.getB(),
-                io.getA1(), // a_curr
+                a_curr, // a_curr：由调用方注入的出参（不再写自持 io）
                 fz,
                 hyperparameters.getSizeA0(), // n
                 hyperparameters.getSizeA1() / 32, // n_words
@@ -28,7 +28,7 @@ public class BnnNetworkProcessor {
         );
     }
 
-    public static void forwardNoFz(BnnNetworkData networkData, BnnIO io, long stream) {
+    public static void forwardNoFz(BnnNetworkData networkData, BnnIO io, long stream /* -> */, BoolVector a_curr) {
         BnnHyperparameters hyperparameters = networkData.getHyperparameters();
         BnnInferenceOps.bnnForwardLayerNoFz(
                 io.getA0(), // a_prev_pad
@@ -37,7 +37,7 @@ public class BnnNetworkProcessor {
                 hyperparameters.getL(),
                 hyperparameters.getR(),
                 hyperparameters.getB(),
-                io.getA1(), // a_curr
+                a_curr, // a_curr：由调用方注入的出参（不再写自持 io）
                 hyperparameters.getSizeA0(), // n
                 hyperparameters.getSizeA1() / 32, // n_words
                 stream // CUDA stream

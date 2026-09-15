@@ -213,7 +213,7 @@ public class ReflexArcSystemAgent implements IAgent {
                 lastGen = gen;
                 // 行为读取：载体类型由 ai 链决定（BoolVector mapped 零拷贝 / FloatVector sync D2H），
                 // ai.readBehaviorTo 把载体数据转为 effector 期望的 bit-packed int[]（无类型开关）。
-                ai.readBehaviorTo(behaviorChannel.getBuffer(), behaviorScratch, 0L);
+                ai.readBehaviorTo(behaviorChannel.getBuffer(), 0L, behaviorScratch);
             }
             // fresh=false（gen 未变）时 behaviorScratch 保持上次值，效应器继续低通滤波（肌肉保持张力）。
             // effector.tick 返回复用实例，立即序列化发包，不跨 tick 持有引用。

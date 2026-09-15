@@ -113,16 +113,16 @@ public class BnnMapper implements FittableMapper, AutoCloseable {
     public void fw(VectorBase x, long stream /* -> */, VectorBase y, Object fwTraceForBw) {
         nn.copyToInput(/* <- */ fullSpan(x), x, stream);
         nn.forward(x, stream /* -> */, y, fwTraceForBw);
-        nn.copyFromOutput(fullSpan(y), stream /* -> */, y);
+        // forward 后 y 即为前向结果（DPS 契约：nn.forward 始终写注入的 y，无需 copyFromOutput 中转）
     }
 
     @Override
-    public void bw(Object fwTraceForBw, VectorBase y, VectorBase t, long stream /* -> */, VectorBase bufTc, FittableMapper bufMapper) {
+    public void bw(VectorBase bufTc, FittableMapper bufMapper /* <- */, Object fwTraceForBw, VectorBase y, VectorBase t, long stream) {
         nn.setTarget(/* <- */ fullSpan(t), t, stream);
         // 经 FittableMapper.getHyperparameters() 接口取 bufHp——不感知 bufMapper 具体家族
         // （真善美第3条：装饰器 mapper 可作为 bufMapper 插入，本实现零改动地适配）。
         Object bufHp = bufMapper != null ? bufMapper.getHyperparameters() : null;
-        nn.backward(fwTraceForBw, y, t, stream /* -> */, bufTc, bufHp);
+        nn.backward(bufTc, bufHp /* <- */, fwTraceForBw, y, t, stream);
     }
 
     /**
@@ -195,8 +195,8 @@ public class BnnMapper implements FittableMapper, AutoCloseable {
     }
 
     @Override
-    public void readBehaviorTo(VectorBase behaviorBuffer, int[] dst, long stream) {
-        nn.readBehaviorTo(behaviorBuffer, dst, stream);
+    public void readBehaviorTo(VectorBase behaviorBuffer, long stream /* -> */, int[] dst) {
+        nn.readBehaviorTo(behaviorBuffer, stream /* -> */, dst);
     }
 
     @Override

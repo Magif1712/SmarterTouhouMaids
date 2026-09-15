@@ -64,5 +64,14 @@
   "option.smarter_touhou_maids.save_interval_seconds": "Save Interval (seconds)",
   "option.smarter_touhou_maids.save_interval_seconds.tooltip": "Auto-save every N seconds (prevents data loss on crash)\nRecommended around 30\nOnly effective when periodic save is enabled",
   "option.smarter_touhou_maids.max_retention": "Max Retained Versions",
-  "option.smarter_touhou_maids.max_retention.tooltip": "How many historical versions to keep per maid\nOldest versions are auto-deleted when exceeded\nOnly effective when persistence is enabled"
+  "option.smarter_touhou_maids.max_retention.tooltip": "How many historical versions to keep per maid\nOldest versions are auto-deleted when exceeded\nOnly effective when persistence is enabled",
+  "mode.smarter_touhou_maids.mapper.cnn_active_mapper": "Active CNN Mapper (Symmetric Init / Odd Activation)",
+  "mode.smarter_touhou_maids.nn.cnn_active": "Active CNN",
+  "mode.smarter_touhou_maids.registry.cnn_active_mapper_nn": "Network",
+  "option.smarter_touhou_maids.cnn_active_activation": "Activation",
+  "option.smarter_touhou_maids.cnn_active_activation.tooltip": "1 = tanh (recommended: soft saturation, still learns for large |z|)\n2 = clipped-linear (no transcendental function, but the derivative is hard-zero at |z| >= 1, so that unit never learns)\nsigmoid is not selectable: its range (0,1) cannot represent the signed C-segment target (75% of the output)\nThe decision threshold is fixed at 0 (shared by both legal activations) and cannot be tuned separately",
+  "option.smarter_touhou_maids.cnn_active_init_bound_w": "Weight Init Radius (q/l/r)",
+  "option.smarter_touhou_maids.cnn_active_init_bound_w.tooltip": "Symmetric zero-mean init radius for q/l/r, must be > 0\nForward z lands roughly in (-3*radius, 3*radius); pick a value that keeps tanh out of saturation\nOnly takes effect when creating a fresh network (no saved weights); loading existing weights keeps the on-disk sign domain",
+  "option.smarter_touhou_maids.cnn_active_init_bound_b": "Bias Init Radius (b)",
+  "option.smarter_touhou_maids.cnn_active_init_bound_b.tooltip": "Symmetric zero-mean init radius for b, must be > 0\nTogether with the weight radius it determines the magnitude of z\nOnly takes effect when creating a fresh network (no saved weights)"
 }
