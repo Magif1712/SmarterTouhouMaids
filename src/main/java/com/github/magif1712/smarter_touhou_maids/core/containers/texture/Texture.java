@@ -76,7 +76,7 @@ public class Texture implements AutoCloseable {
      * @throws IllegalStateException 如果此纹理已关闭或未初始化
      * @throws IllegalArgumentException 如果源纹理 ID 无效
      */
-    public void snapshotFrom(int srcTextureId, int srcWidth, int srcHeight) {
+    public void snapshotFrom(/* <- */ int srcTextureId, int srcWidth, int srcHeight) {
         if (!initialized) {
             throw new IllegalStateException("Texture has been closed or not initialized");
         }

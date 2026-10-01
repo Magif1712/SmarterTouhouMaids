@@ -1,16 +1,16 @@
 package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.panels;
 
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.AgentNodeKeys;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.SelectionLoader;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.SmarterClientState;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.SmarterLayerWalker;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Branch;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.ConceptTree;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.ConstraintSolver;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Node;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.NodeKey;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.RegistrySnapshot;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Selection;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.modes.agent.AgentNodeKeys;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.runtime.SelectionLoader;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.runtime.SmarterClientState;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.runtime.SmarterLayerWalker;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.Branch;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.ConceptTree;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.ConstraintSolver;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.Node;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.NodeKey;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.RegistrySnapshot;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.Selection;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.IConfigPanel;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.PanelContext;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.layout.ConfigRow;

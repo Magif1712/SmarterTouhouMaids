@@ -6,7 +6,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
- * 一个可对接配置面板的顶层契约（类比 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.IAgent}）。
+ * 一个可对接配置面板的顶层契约（类比 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.modes.agent.IAgent}）。
  * <p>
  * 一个 Panel = GUI 中的一个配置区（附身配置 / AI 模式选择 / 运行参数 / Agent 调试 / 附属自定义）。
  * Screen 是 Panel 容器，遍历 {@link PanelRegistry#all()} 按 {@link #getTitle()} 分区、

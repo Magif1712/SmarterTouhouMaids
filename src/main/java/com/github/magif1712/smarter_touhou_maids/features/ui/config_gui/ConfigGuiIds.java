@@ -1,7 +1,7 @@
 package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui;
 
 import com.github.magif1712.smarter_touhou_maids.SmarterTouhouMaids;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.NodeKey;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.NodeKey;
 import net.minecraft.resources.ResourceLocation;
 
 /**

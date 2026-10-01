@@ -28,7 +28,7 @@ public abstract class VectorBase implements AutoCloseable {
         this.ownsHandle = true;
     }
 
-    protected void setHandleAndSize(long handle, int size) {
+    protected void setHandleAndSize(/* <- */ long handle, int size) {
         if (handle == 0L) {
             throw new IllegalStateException("Native vector creation failed");
         }
@@ -60,7 +60,7 @@ public abstract class VectorBase implements AutoCloseable {
     @Override
     public final void close() {
         if (this.ownsHandle) {
-            releaseResource();
+            releaseResource(/* <- */);
             this.ownsHandle = false;
             this.handle = 0L;
             this.size = 0;
@@ -71,7 +71,7 @@ public abstract class VectorBase implements AutoCloseable {
      * 从另一个向量对象移动资源所有权到当前对象。
      * 实现移动语义，确保显存资源的唯一所有权。
      */
-    public void moveFrom(VectorBase other) {
+    public void moveFrom(/* <- */ VectorBase other) {
         if (this == other) {
             throw new IllegalArgumentException("Cannot move an object to itself.");
         }
@@ -85,7 +85,7 @@ public abstract class VectorBase implements AutoCloseable {
         other.ownsHandle = false;
     }
 
-    protected abstract void releaseResource();
+    protected abstract void releaseResource(/* <- */);
 
     /**
      * 从源向量的指定区间拷贝数据到本向量的指定区间（D2D 拷贝）。
@@ -95,12 +95,12 @@ public abstract class VectorBase implements AutoCloseable {
      * @param destSpan     目标区间。
      * @param streamHandle CUDA 流句柄（显式控制异步拷贝所在的流）。
      */
-    public abstract void copyRegionFrom(VectorBase source, Span srcSpan, Span destSpan, long streamHandle);
+    public abstract void copyRegionFrom(/* <- */ VectorBase source, Span srcSpan, Span destSpan, long streamHandle);
 
     /**
      * 为向量分配指定大小的显存空间。
      */
-    public abstract void allocate(int size);
+    public abstract void allocate(/* <- */ int size);
 
     /**
      * 将向量序列化到磁盘。

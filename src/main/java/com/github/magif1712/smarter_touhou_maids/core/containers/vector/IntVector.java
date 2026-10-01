@@ -24,24 +24,24 @@ public final class IntVector extends VectorBase {
     }
 
     @Override
-    public void allocate(int size) {
+    public void allocate(/* <- */ int size) {
         validateSize(size);
         long newHandle = VectorNative._createVectorInt();
         VectorNative._allocateInt(newHandle, size);
         setHandleAndSize(newHandle, size);
     }
 
-    public void copyFromHost(int[] data, int count, long streamHandle) {
+    public void copyFromHost(/* <- */ int[] data, int count, long streamHandle) {
         validateCount(count, data.length);
         validateCount(count, size());
         VectorNative._copyFromHostInt(requireHandle(), data, count, streamHandle);
     }
 
-    public void copyToHost(int[] data) {
-        copyToHost(data, data.length);
+    public void copyToHost(/* -> */ int[] data) {
+        copyToHost(data.length, /* -> */ data);
     }
 
-    public void copyToHost(int[] data, int count) {
+    public void copyToHost(int count, /* -> */ int[] data) {
         validateCount(count, data.length);
         validateCount(count, size());
         VectorNative._copyToHostInt(requireHandle(), data, count);
@@ -49,7 +49,7 @@ public final class IntVector extends VectorBase {
 
     public int[] toHostArray() {
         int[] data = new int[size()];
-        copyToHost(data);
+        copyToHost(/* -> */ data);
         return data;
     }
 
@@ -69,7 +69,7 @@ public final class IntVector extends VectorBase {
         return new IntVector(h, size);
     }
 
-    public void copyFromIntVector(Span destSpan, IntVector source, Span srcSpan, long streamHandle) {
+    public void copyFromIntVector(/* <- */ Span destSpan, IntVector source, Span srcSpan, long streamHandle) {
         Objects.requireNonNull(destSpan);
         Objects.requireNonNull(source);
         Objects.requireNonNull(srcSpan);
@@ -88,14 +88,14 @@ public final class IntVector extends VectorBase {
     }
 
     @Override
-    public void copyRegionFrom(VectorBase source, Span srcSpan, Span destSpan, long streamHandle) {
+    public void copyRegionFrom(/* <- */ VectorBase source, Span srcSpan, Span destSpan, long streamHandle) {
         if (!(source instanceof IntVector)) {
             throw new IllegalArgumentException("Source must be an IntVector.");
         }
         this.copyFromIntVector(destSpan, (IntVector) source, srcSpan, streamHandle);
     }
 
-    public void setRegion(Span destSpan, IntVector source, long streamHandle) {
+    public void setRegion(/* <- */ Span destSpan, IntVector source, long streamHandle) {
         Objects.requireNonNull(destSpan);
         Objects.requireNonNull(source);
         if (source.size() == 0)
@@ -115,7 +115,7 @@ public final class IntVector extends VectorBase {
         VectorNative._setRegionInt(requireHandle(), destOffset, source.requireHandle(), streamHandle);
     }
 
-    public void copyRegionFromHost(Span destSpan, int[] src_data, long streamHandle) {
+    public void copyRegionFromHost(/* <- */ Span destSpan, int[] src_data, long streamHandle) {
         Objects.requireNonNull(destSpan);
         Objects.requireNonNull(src_data);
 
@@ -134,7 +134,7 @@ public final class IntVector extends VectorBase {
         VectorNative._copyRegionFromHostInt(requireHandle(), destOffset, src_data, count, streamHandle);
     }
 
-    public void multiplyByScalar(int scalar, long streamHandle) {
+    public void multiplyByScalar(/* <- */ int scalar, long streamHandle) {
         if (size() > 0) {
             multiplyByScalar(scalar, new Span(0, size()) {}, streamHandle);
         }
@@ -147,7 +147,7 @@ public final class IntVector extends VectorBase {
      * @param span         要操作的区间。
      * @param streamHandle CUDA 流句柄。
      */
-    public void multiplyByScalar(int scalar, Span span, long streamHandle) {
+    public void multiplyByScalar(/* <- */ int scalar, Span span, long streamHandle) {
         Objects.requireNonNull(span);
         long offset = span.getOffset();
         long length = span.getLength();
@@ -173,12 +173,12 @@ public final class IntVector extends VectorBase {
      * @param maxVal  上界（独占）；maxVal<=0 时填 0。
      * @param seed    64 位种子。
      */
-    public void fillRandom(int maxVal, long seed) {
+    public void fillRandom(/* <- */ int maxVal, long seed) {
         VectorNative._fillRandomInt(requireHandle(), maxVal, seed);
     }
 
     @Override
-    protected void releaseResource() {
+    protected void releaseResource(/* <- */) {
         VectorNative._deleteVectorInt(handle);
     }
 }

@@ -1,6 +1,6 @@
 package com.github.magif1712.smarter_touhou_maids.mixin;
 
-import com.github.magif1712.smarter_touhou_maids.features.smarter.state.MaidSmarterState;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.state.MaidSmarterState;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.world.entity.Mob;
 import org.spongepowered.asm.mixin.Mixin;
@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * 抑制原版 AI 的 {@code Mob.serverAiStep}（脊髓反射），让 smarter 激活时
- * {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.effector.execution.MaidActionSink}
+ * {@link com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.execution.MaidActionSink}
  * （意识→肌肉）独占实体控制权。
  * <p>
  * {@code serverAiStep} 内含 sensing / targetSelector / goalSelector / navigation /
@@ -19,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * <p>
  * <b>激活状态来源</b>：{@link MaidSmarterState#isEnabled} 现语义为"agent 激活状态"
  * （原"用户 UI 开关"，已变迁）。由客户端 {@code SmarterClientService} 检测
- * {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.IAgent#isActive()}
+ * {@link com.github.magif1712.smarter_touhou_maids.features.smarter.modes.agent.IAgent#isActive()}
  * 边界变化时 sync 写入（经 ServerboundSetSmarterModePacket）。
  * <p>
  * 设计原则（真善美第 3 条）：本 mixin（上层）只读 sync 后的激活标量，不依赖下层激活条件

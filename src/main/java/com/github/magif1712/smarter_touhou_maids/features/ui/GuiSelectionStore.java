@@ -1,8 +1,8 @@
 package com.github.magif1712.smarter_touhou_maids.features.ui;
 
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.ConceptTree;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Node;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.RegistrySnapshot;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.ConceptTree;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.Node;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.RegistrySnapshot;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.ConfigGuiFactory;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.ConfigGuiIds;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
@@ -52,7 +52,7 @@ public final class GuiSelectionStore {
             return null;
         }
         Node<ConfigGuiFactory> node = snapshot.node(ConfigGuiIds.CONFIG_GUI);
-        return node != null ? node.defaultBranch() : null;
+        return node != null ? node.defaultBranch(/* <- */ ) : null;
     }
 
     /**

@@ -25,7 +25,7 @@ import javax.annotation.Nullable;
  * （真善美第2条：Screen 换一种 Panel 集合实现不改代码也能正确运行）。
  * <p>
  * 调试开关不再硬编码：由 AgentDebugPanel 经
- * {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.debug.DebugPanelProvider}
+ * {@link com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.debug.DebugPanelProvider}
  * 数据驱动渲染，换 Agent 时 GUI 零改动。
  * <p>
  * <b>布局实在化 + 滚动</b>：内容超出 viewport 时由 {@link VerticalStack} 管理 scrollOffset，

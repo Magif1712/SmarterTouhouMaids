@@ -2,7 +2,7 @@ package com.github.magif1712.smarter_touhou_maids.features.maid.compat.task;
 
 import com.github.magif1712.smarter_touhou_maids.SmarterTouhouMaids;
 import com.github.magif1712.smarter_touhou_maids.features.maid.menu.AutoTaskConfigMenu;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.possession.config.PossessionConfig;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.possession.config.PossessionConfig;
 import com.github.tartaricacid.touhoulittlemaid.api.task.IMaidTask;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import com.mojang.datafixers.util.Pair;

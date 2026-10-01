@@ -1,6 +1,6 @@
 package com.github.magif1712.smarter_touhou_maids.features.config;
 
-import com.github.magif1712.smarter_touhou_maids.features.smarter.possession.config.PossessionConfig;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.possession.config.PossessionConfig;
 import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.config.ModConfig;

@@ -1,14 +1,14 @@
 package com.github.magif1712.smarter_touhou_maids.network;
 
 import com.github.magif1712.smarter_touhou_maids.SmarterTouhouMaids;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.possession.network.PossessionNetwork;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.AgentNetwork;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ClientboundAiModeSyncPacket;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ClientboundParamSyncPacket;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ClientboundSmarterModeSyncPacket;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ServerboundSetAiModePacket;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ServerboundSetParamPacket;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.network.ServerboundSetSmarterModePacket;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.possession.network.PossessionNetwork;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.network.AgentNetwork;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.network.ClientboundAiModeSyncPacket;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.network.ClientboundParamSyncPacket;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.network.ClientboundSmarterModeSyncPacket;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.network.ServerboundSetAiModePacket;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.network.ServerboundSetParamPacket;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.network.ServerboundSetSmarterModePacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;

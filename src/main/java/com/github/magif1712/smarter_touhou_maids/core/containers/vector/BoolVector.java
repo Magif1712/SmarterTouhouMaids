@@ -24,7 +24,7 @@ public final class BoolVector extends VectorBase {
     }
 
     @Override
-    public void allocate(int size) {
+    public void allocate(/* <- */ int size) {
         validateSize(size);
         long newHandle = VectorNative._createVectorBool();
         VectorNative._allocateBool(newHandle, size);
@@ -43,7 +43,7 @@ public final class BoolVector extends VectorBase {
      *
      * @param size 位长度。
      */
-    public void allocateMapped(int size) {
+    public void allocateMapped(/* <- */ int size) {
         validateSize(size);
         long newHandle = VectorNative._createVectorBool();
         VectorNative._allocateBoolMapped(newHandle, size);
@@ -68,7 +68,7 @@ public final class BoolVector extends VectorBase {
      * @param bitPackedData 输出数组。
      * @param wordCount     读取的 word 数。
      */
-    public void readMappedToJava(int[] bitPackedData, int wordCount) {
+    public void readMappedToJava(int wordCount, /* -> */ int[] bitPackedData) {
         Objects.requireNonNull(bitPackedData);
         validateCount(wordCount, bitPackedData.length);
         VectorNative._readMappedBool(requireHandle(), bitPackedData, wordCount);
@@ -77,23 +77,23 @@ public final class BoolVector extends VectorBase {
     /**
      * 从 mapped host 内存读取全部数据到 int[]。
      */
-    public void readMappedToJava(int[] bitPackedData) {
-        readMappedToJava(bitPackedData, bitPackedData.length);
+    public void readMappedToJava(/* -> */ int[] bitPackedData) {
+        readMappedToJava(bitPackedData.length, /* -> */ bitPackedData);
     }
 
 
 
-    public void copyFromHost(int[] bitPackedData, int wordCount, long streamHandle) {
+    public void copyFromHost(/* <- */ int[] bitPackedData, int wordCount, long streamHandle) {
         Objects.requireNonNull(bitPackedData);
         validateCount(wordCount, bitPackedData.length);
         VectorNative._copyFromHostBool(requireHandle(), bitPackedData, wordCount, streamHandle);
     }
 
-    public void copyToHost(int[] bitPackedData) {
-        copyToHost(bitPackedData, bitPackedData.length);
+    public void copyToHost(/* -> */ int[] bitPackedData) {
+        copyToHost(bitPackedData.length, /* -> */ bitPackedData);
     }
 
-    public void copyToHost(int[] bitPackedData, int wordCount) {
+    public void copyToHost(int wordCount, /* -> */ int[] bitPackedData) {
         Objects.requireNonNull(bitPackedData);
         validateCount(wordCount, bitPackedData.length);
         VectorNative._copyToHostBool(requireHandle(), bitPackedData, wordCount);
@@ -108,7 +108,7 @@ public final class BoolVector extends VectorBase {
      *
      * @param streamHandle 目标 CUDA 流句柄（应为非零流；0=NULL 流退化为设备级同步）。
      */
-    public void copyToHost(int[] bitPackedData, int wordCount, long streamHandle) {
+    public void copyToHost(int wordCount, long streamHandle, /* -> */ int[] bitPackedData) {
         Objects.requireNonNull(bitPackedData);
         validateCount(wordCount, bitPackedData.length);
         VectorNative._copyToHostBoolSync(requireHandle(), bitPackedData, wordCount, streamHandle);
@@ -129,7 +129,7 @@ public final class BoolVector extends VectorBase {
         return new BoolVector(h, size);
     }
 
-    public void copyFromBoolVector(Span destSpan, BoolVector source, Span srcSpan, long streamHandle) {
+    public void copyFromBoolVector(/* <- */ Span destSpan, BoolVector source, Span srcSpan, long streamHandle) {
         Objects.requireNonNull(destSpan);
         Objects.requireNonNull(source);
         Objects.requireNonNull(srcSpan);
@@ -145,14 +145,14 @@ public final class BoolVector extends VectorBase {
     }
 
     @Override
-    public void copyRegionFrom(VectorBase source, Span srcSpan, Span destSpan, long streamHandle) {
+    public void copyRegionFrom(/* <- */ VectorBase source, Span srcSpan, Span destSpan, long streamHandle) {
         if (!(source instanceof BoolVector)) {
             throw new IllegalArgumentException("Source must be a BoolVector.");
         }
         this.copyFromBoolVector(destSpan, (BoolVector) source, srcSpan, streamHandle);
     }
 
-    public void setRegion(Span destSpan, BoolVector source, long streamHandle) {
+    public void setRegion(/* <- */ Span destSpan, BoolVector source, long streamHandle) {
         Objects.requireNonNull(destSpan);
         Objects.requireNonNull(source);
         if (source.size() == 0) return;
@@ -170,7 +170,7 @@ public final class BoolVector extends VectorBase {
         VectorNative._setRegionBool(requireHandle(), destOffset, source.requireHandle(), streamHandle);
     }
 
-    public void copyRegionFromHost(Span destSpan, boolean[] src_data, long streamHandle) {
+    public void copyRegionFromHost(/* <- */ Span destSpan, boolean[] src_data, long streamHandle) {
         Objects.requireNonNull(destSpan);
         Objects.requireNonNull(src_data);
 
@@ -199,12 +199,12 @@ public final class BoolVector extends VectorBase {
      *
      * @param seed 64 位种子（不同向量应传不同子种子，避免同尺寸向量得到相同随机模式）。
      */
-    public void fillRandom(long seed) {
+    public void fillRandom(/* <- */ long seed) {
         VectorNative._fillRandomBool(requireHandle(), seed);
     }
 
     @Override
-    protected void releaseResource() {
+    protected void releaseResource(/* <- */) {
         VectorNative._deleteVectorBool(handle);
     }
 }

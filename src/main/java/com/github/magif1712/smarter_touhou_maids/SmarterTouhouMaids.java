@@ -2,15 +2,15 @@ package com.github.magif1712.smarter_touhou_maids;
 
 import com.github.magif1712.smarter_touhou_maids.features.config.ModClientConfig;
 import com.github.magif1712.smarter_touhou_maids.features.maid.menu.InitMenus;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.possession.ServerPossessionManager;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.AgentDefaults;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.AgentNodeKeys;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.SmarterClientService;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.ConceptTree;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.RegistryCollectEvent;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.network.SmarterTrackingSync;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.network.SmarterPendingCleanup;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.reflex_arc_system_agent.debug.VisionDebugHook;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.possession.ServerPossessionManager;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.modes.agent.reflex_arc_system_agent.AgentRegistration;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.modes.agent.AgentNodeKeys;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.runtime.SmarterClientService;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.ConceptTree;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.RegistryCollectEvent;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.network.SmarterTrackingSync;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.network.SmarterPendingCleanup;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.modes.agent.reflex_arc_system_agent.debug.VisionDebugHook;
 import com.github.magif1712.smarter_touhou_maids.network.NetworkHandler;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.MinecraftForge;
@@ -37,7 +37,7 @@ public class SmarterTouhouMaids {
         // 注册默认模式（agent/sensor/effector 插槽 + 默认分支）。
         // 在 FMLCommonSetupEvent 执行：所有 mod 构造器之后、游戏就绪之前，
         // 附属模组可在自己的 setup event 里经 ConceptTree.builder() 追加注册。
-        modEventBus.addListener((FMLCommonSetupEvent e) -> AgentDefaults.registerDefaults());
+        modEventBus.addListener((FMLCommonSetupEvent e) -> AgentRegistration.registerDefaults());
         // 附属注册收集：内置注册（FMLCommonSetupEvent）之后、freeze（FMLLoadCompleteEvent）之前——
         // 时序锁死（硬约束6）。附属模组 @Mod.EventBusSubscriber(bus=MOD) 监听 RegistryCollectEvent。
         modEventBus.addListener((InterModEnqueueEvent e) ->
@@ -51,7 +51,7 @@ public class SmarterTouhouMaids {
             if (ConceptTree.builder().get(configGuiId) != null) {
                 roots.add(configGuiId);
             }
-            ConceptTree.freeze(roots /*->*/);
+            ConceptTree.freeze(roots);
         });
 
         MinecraftForge.EVENT_BUS.register(ServerPossessionManager.INSTANCE);

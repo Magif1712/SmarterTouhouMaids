@@ -83,91 +83,91 @@ add_library(stm_ai SHARED
 
   # Bnn 家族核心 mechanics（nn/bnn/mapping/，original_bnn 与 standard_bnn 共享）
   # Gradient Ops Component (两阶段 BPTT 反向)
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/mapping/gradient/interop/gradient_ops_jni.cpp
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/mapping/gradient/interop/gradient_ops_bridge.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/mapping/gradient/interop/gradient_ops_bridge.h
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/mapping/gradient/gradient_ops.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/mapping/gradient/gradient_ops.h
+  src/features/smarter/modes/nn/bnn/mapping/training/interop/gradient_ops_jni.cpp
+  src/features/smarter/modes/nn/bnn/mapping/training/interop/gradient_ops_bridge.cu
+  src/features/smarter/modes/nn/bnn/mapping/training/interop/gradient_ops_bridge.h
+  src/features/smarter/modes/nn/bnn/mapping/training/gradient_ops.cu
+  src/features/smarter/modes/nn/bnn/mapping/training/gradient_ops.h
 
   # Inference Ops Component (前向)
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/mapping/inference/interop/inference_ops_jni.cpp
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/mapping/inference/interop/inference_ops_bridge.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/mapping/inference/interop/inference_ops_bridge.h
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/mapping/inference/inference_ops.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/mapping/inference/inference_ops.h
+  src/features/smarter/modes/nn/bnn/mapping/inference/interop/inference_ops_jni.cpp
+  src/features/smarter/modes/nn/bnn/mapping/inference/interop/inference_ops_bridge.cu
+  src/features/smarter/modes/nn/bnn/mapping/inference/interop/inference_ops_bridge.h
+  src/features/smarter/modes/nn/bnn/mapping/inference/inference_ops.cu
+  src/features/smarter/modes/nn/bnn/mapping/inference/inference_ops.h
 
   # Bnn Ops Component (BNN 特定: negateAndBinarize 梯度→输入转换)
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/mapping/generic/interop/bnn_ops_jni.cpp
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/mapping/generic/interop/bnn_ops_bridge.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/mapping/generic/interop/bnn_ops_bridge.h
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/mapping/generic/bnn_ops.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/mapping/generic/bnn_ops.h
+  src/features/smarter/modes/nn/bnn/mapping/interop/bnn_ops_jni.cpp
+  src/features/smarter/modes/nn/bnn/mapping/interop/bnn_ops_bridge.cu
+  src/features/smarter/modes/nn/bnn/mapping/interop/bnn_ops_bridge.h
+  src/features/smarter/modes/nn/bnn/mapping/bnn_ops.cu
+  src/features/smarter/modes/nn/bnn/mapping/bnn_ops.h
 
   # Standard Bnn Leaf (输入变化门控重连 = 惊跳反射，standard_bnn 独有)
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/standard_bnn/mapping/elastic_ops.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/standard_bnn/mapping/elastic_ops.h
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/standard_bnn/mapping/interop/elastic_ops_bridge.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/standard_bnn/mapping/interop/elastic_ops_bridge.h
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process_original/nn/bnn/standard_bnn/mapping/interop/elastic_ops_jni.cpp
+  src/features/smarter/modes/nn/standard_bnn/elastic_ops.cu
+  src/features/smarter/modes/nn/standard_bnn/elastic_ops.h
+  src/features/smarter/modes/nn/standard_bnn/interop/elastic_ops_bridge.cu
+  src/features/smarter/modes/nn/standard_bnn/interop/elastic_ops_bridge.h
+  src/features/smarter/modes/nn/standard_bnn/interop/elastic_ops_jni.cpp
 
   # CNN 家族（nn/cnn/mapping/，与 Java 包结构镜像）
 
   # CNN Inference Ops Component (前向 + refreshCache)
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn/mapping/inference/interop/inference_ops_jni.cpp
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn/mapping/inference/interop/inference_ops_bridge.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn/mapping/inference/interop/inference_ops_bridge.h
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn/mapping/inference/inference_ops.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn/mapping/inference/inference_ops.h
+  src/features/smarter/modes/nn/cnn/mapping/inference/interop/inference_ops_jni.cpp
+  src/features/smarter/modes/nn/cnn/mapping/inference/interop/inference_ops_bridge.cu
+  src/features/smarter/modes/nn/cnn/mapping/inference/interop/inference_ops_bridge.h
+  src/features/smarter/modes/nn/cnn/mapping/inference/inference_ops.cu
+  src/features/smarter/modes/nn/cnn/mapping/inference/inference_ops.h
 
   # CNN Gradient Ops Component (两阶段反向: δ + 参数梯度 + 输入梯度 + 权重更新 + 缓存刷新)
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn/mapping/gradient/interop/gradient_ops_jni.cpp
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn/mapping/gradient/interop/gradient_ops_bridge.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn/mapping/gradient/interop/gradient_ops_bridge.h
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn/mapping/gradient/gradient_ops.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn/mapping/gradient/gradient_ops.h
+  src/features/smarter/modes/nn/cnn/mapping/gradient/interop/gradient_ops_jni.cpp
+  src/features/smarter/modes/nn/cnn/mapping/gradient/interop/gradient_ops_bridge.cu
+  src/features/smarter/modes/nn/cnn/mapping/gradient/interop/gradient_ops_bridge.h
+  src/features/smarter/modes/nn/cnn/mapping/gradient/gradient_ops.cu
+  src/features/smarter/modes/nn/cnn/mapping/gradient/gradient_ops.h
 
-  # CNN-Active 家族（nn/cnn_active/mapping/，独立演化的新活性 CNN；共享 stm_ai 但自有 mechanism）
+  # CNN-Active 家族（cnn_active/mapping/，独立演化的新活性 CNN；共享 stm_ai 但自有 mechanism）
   # Init Ops Component (D1/D3 对称零均值填充: (u01*2-1)*bound)
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/init/interop/init_ops_jni.cpp
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/init/interop/init_ops_bridge.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/init/interop/init_ops_bridge.h
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/init/init_ops.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/init/init_ops.h
+  src/features/smarter/modes/nn/cnn_active/mapping/init/interop/init_ops_jni.cpp
+  src/features/smarter/modes/nn/cnn_active/mapping/init/interop/init_ops_bridge.cu
+  src/features/smarter/modes/nn/cnn_active/mapping/init/interop/init_ops_bridge.h
+  src/features/smarter/modes/nn/cnn_active/mapping/init/init_ops.cu
+  src/features/smarter/modes/nn/cnn_active/mapping/init/init_ops.h
 
   # CNN-Active Inference Ops Component (前向 + activationId + prevB 块内模环 + refresh_cache)
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/inference/interop/inference_ops_jni.cpp
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/inference/interop/inference_ops_bridge.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/inference/interop/inference_ops_bridge.h
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/inference/inference_ops.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/inference/inference_ops.h
+  src/features/smarter/modes/nn/cnn_active/mapping/inference/interop/inference_ops_jni.cpp
+  src/features/smarter/modes/nn/cnn_active/mapping/inference/interop/inference_ops_bridge.cu
+  src/features/smarter/modes/nn/cnn_active/mapping/inference/interop/inference_ops_bridge.h
+  src/features/smarter/modes/nn/cnn_active/mapping/inference/inference_ops.cu
+  src/features/smarter/modes/nn/cnn_active/mapping/inference/inference_ops.h
 
   # CNN-Active Gradient Ops Component (两阶段反向: 奇激活导数 + prevB 邻域 + 输入梯度守卫)
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/gradient/interop/gradient_ops_jni.cpp
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/gradient/interop/gradient_ops_bridge.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/gradient/interop/gradient_ops_bridge.h
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/gradient/gradient_ops.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/nn/cnn_active/mapping/gradient/gradient_ops.h
+  src/features/smarter/modes/nn/cnn_active/mapping/gradient/interop/gradient_ops_jni.cpp
+  src/features/smarter/modes/nn/cnn_active/mapping/gradient/interop/gradient_ops_bridge.cu
+  src/features/smarter/modes/nn/cnn_active/mapping/gradient/interop/gradient_ops_bridge.h
+  src/features/smarter/modes/nn/cnn_active/mapping/gradient/gradient_ops.cu
+  src/features/smarter/modes/nn/cnn_active/mapping/gradient/gradient_ops.h
 
-  # Vision Component（采集/解码分离后仅剩 kernel：launchUnpackKernel 供 fittable_mapper 解码器调用）
-  src/features/smarter/agent/reflex_arc_system_agent/sensor/possession_sensor/vision/cuda_gl_vision.cu
-  src/features/smarter/agent/reflex_arc_system_agent/sensor/possession_sensor/vision/cuda_gl_vision.h
+  # Vision Component（采集/解码分离后仅剩 kernel：launchUnpackKernel 供 mapper 解码器调用）
+  src/features/smarter/modes/sensor/on_demand_possession_sensor/vision/cuda_gl_vision.cu
+  src/features/smarter/modes/sensor/on_demand_possession_sensor/vision/cuda_gl_vision.h
 
-  # Vision Encoder Components（fittable_mapper 层：Texture 解码为 NN 可利用数据类型，从 vision_bridge 搬出）
+  # Vision Encoder Components（mapper 层：Texture 解码为 NN 可利用数据类型，从 vision_bridge 搬出）
   # BitplaneEncoder（BNN 映射器的视觉解码器，住 bnn_mapper/interop/）
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/fittable_mapper/bnn_mapper/interop/bitplane_encoder_bridge.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/fittable_mapper/bnn_mapper/interop/bitplane_encoder_bridge.h
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/fittable_mapper/bnn_mapper/interop/bitplane_encoder_jni.cpp
+  src/features/smarter/modes/mapper/bnn_mapper/interop/bitplane_encoder_bridge.cu
+  src/features/smarter/modes/mapper/bnn_mapper/interop/bitplane_encoder_bridge.h
+  src/features/smarter/modes/mapper/bnn_mapper/interop/bitplane_encoder_jni.cpp
   # RgbFloatEncoder（原初映射器的视觉解码器，住 original_mapper/interop/）
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/fittable_mapper/original_mapper/interop/rgb_float_encoder_bridge.cu
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/fittable_mapper/original_mapper/interop/rgb_float_encoder_bridge.h
-  src/features/smarter/agent/reflex_arc_system_agent/ai/process_ai/process/urana_process/fittable_mapper/original_mapper/interop/rgb_float_encoder_jni.cpp
+  src/features/smarter/modes/mapper/original_mapper/interop/rgb_float_encoder_bridge.cu
+  src/features/smarter/modes/mapper/original_mapper/interop/rgb_float_encoder_bridge.h
+  src/features/smarter/modes/mapper/original_mapper/interop/rgb_float_encoder_jni.cpp
 
   # Vision Component - Original（原初代理位平面版，符号加 Original 后缀与新版共存）
-  src/features/smarter/agent/reflex_arc_system_agent/sensor/possession_sensor_original/vision/cuda_gl_vision.cu
-  src/features/smarter/agent/reflex_arc_system_agent/sensor/possession_sensor_original/vision/cuda_gl_vision.h
-  src/features/smarter/agent/reflex_arc_system_agent/sensor/possession_sensor_original/vision/interop/vision_bridge.cu
-  src/features/smarter/agent/reflex_arc_system_agent/sensor/possession_sensor_original/vision/interop/vision_bridge.h
-  src/features/smarter/agent/reflex_arc_system_agent/sensor/possession_sensor_original/vision/interop/vision_jni.cpp
+  src/features/smarter/modes/sensor/possession_sensor/vision/cuda_gl_vision.cu
+  src/features/smarter/modes/sensor/possession_sensor/vision/cuda_gl_vision.h
+  src/features/smarter/modes/sensor/possession_sensor/vision/interop/vision_bridge.cu
+  src/features/smarter/modes/sensor/possession_sensor/vision/interop/vision_bridge.h
+  src/features/smarter/modes/sensor/possession_sensor/vision/interop/vision_jni.cpp
 
   # Texture Component
   src/core/containers/texture/Texture.cu

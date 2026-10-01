@@ -78,7 +78,7 @@ public final class MappedGenerationBuffer implements AutoCloseable {
      *
      * @param streamHandle CUDA stream 句柄，generation.increment 在其上提交。
      */
-    public void publish(long streamHandle) {
+    public void publish(/* <- */ long streamHandle) {
         generation.increment(streamHandle);
     }
 
@@ -100,11 +100,11 @@ public final class MappedGenerationBuffer implements AutoCloseable {
      *
      * @param bitPackedData 接收数据的 int[]（LSB-first bit 排布），长度须 >= buffer 位长 / 32。
      */
-    public void readTo(int[] bitPackedData) {
+    public void readTo(/* -> */ int[] bitPackedData) {
         if (!(buffer instanceof BoolVector bv)) {
             throw new IllegalStateException("readTo(int[]) only supports BoolVector mapped buffer; use ai.readBehaviorTo() for other carriers");
         }
-        bv.readMappedToJava(bitPackedData);
+        bv.readMappedToJava(/* -> */ bitPackedData);
     }
 
     @Override

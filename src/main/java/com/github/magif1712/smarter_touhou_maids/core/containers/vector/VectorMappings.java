@@ -11,7 +11,7 @@ public final class VectorMappings {
     /**
      * 将源位向量 src 中的每一位按照索引映射 P 分散写入目标位向量 dst。
      */
-    public static void scatterBits(BoolVector src, BoolVector dst, IntVector P) {
+    public static void scatterBits(BoolVector src, IntVector P, /*->*/ BoolVector dst) {
         Objects.requireNonNull(src);
         Objects.requireNonNull(dst);
         Objects.requireNonNull(P);
@@ -24,7 +24,7 @@ public final class VectorMappings {
     /**
      * 对两个位压缩向量进行 XOR 操作 (dst ^= src)。
      */
-    public static void xorBool(BoolVector dst, BoolVector src) {
+    public static void xorBool(BoolVector src, /*->*/ BoolVector dst) {
         Objects.requireNonNull(dst);
         Objects.requireNonNull(src);
         if (dst.size() != src.size()) {
@@ -39,7 +39,7 @@ public final class VectorMappings {
      *
      * @param streamHandle CUDA 流句柄（kernel 在此流上执行）。
      */
-    public static void subtractBool(IntVector c, Span cSpan, BoolVector a, BoolVector b, Span abSpan, long streamHandle) {
+    public static void subtractBool(BoolVector a, BoolVector b, Span abSpan, long streamHandle, /*->*/ IntVector c, Span cSpan) {
         Objects.requireNonNull(c);
         Objects.requireNonNull(cSpan);
         Objects.requireNonNull(a);

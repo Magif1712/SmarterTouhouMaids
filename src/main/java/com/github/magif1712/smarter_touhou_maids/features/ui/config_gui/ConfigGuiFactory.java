@@ -1,9 +1,9 @@
 package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui;
 
 import com.github.magif1712.smarter_touhou_maids.features.maid.menu.AutoTaskConfigMenu;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.AssemblyContext;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Factory;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.OutSlot;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.AssemblyContext;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.Factory;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.OutSlot;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;

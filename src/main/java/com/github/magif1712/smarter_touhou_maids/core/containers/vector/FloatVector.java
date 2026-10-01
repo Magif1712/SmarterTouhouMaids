@@ -30,7 +30,7 @@ public final class FloatVector extends VectorBase {
     }
 
     @Override
-    public void allocate(int size) {
+    public void allocate(/* <- */ int size) {
         validateSize(size);
         long newHandle = VectorNative._createVectorFloat();
         VectorNative._allocateFloat(newHandle, size);
@@ -43,7 +43,7 @@ public final class FloatVector extends VectorBase {
      * GPU 经 device 视图写等价于写 host 内存，host 经 {@link #readMappedToJava} 直接读。
      * 用于 CNN behavior 容器：主线程零 CUDA 调用读取，不 flush WDDM 命令缓冲。
      */
-    public void allocateMapped(int size) {
+    public void allocateMapped(/* <- */ int size) {
         validateSize(size);
         long newHandle = VectorNative._createVectorFloat();
         VectorNative._allocateFloatMapped(newHandle, size);
@@ -68,7 +68,7 @@ public final class FloatVector extends VectorBase {
      * @param dstData 输出数组。
      * @param count   读取的元素数。
      */
-    public void readMappedToJava(float[] dstData, int count) {
+    public void readMappedToJava(int count, /* -> */ float[] dstData) {
         Objects.requireNonNull(dstData);
         validateCount(count, dstData.length);
         validateCount(count, size());
@@ -78,21 +78,21 @@ public final class FloatVector extends VectorBase {
     /**
      * 从 mapped host 内存读取全部数据到 float[]。
      */
-    public void readMappedToJava(float[] dstData) {
-        readMappedToJava(dstData, dstData.length);
+    public void readMappedToJava(/* -> */ float[] dstData) {
+        readMappedToJava(dstData.length, /* -> */ dstData);
     }
 
-    public void copyFromHost(float[] data, int count, long streamHandle) {
+    public void copyFromHost(/* <- */ float[] data, int count, long streamHandle) {
         validateCount(count, data.length);
         validateCount(count, size());
         VectorNative._copyFromHostFloat(requireHandle(), data, count, streamHandle);
     }
 
-    public void copyToHost(float[] data) {
-        copyToHost(data, data.length);
+    public void copyToHost(/* -> */ float[] data) {
+        copyToHost(data.length, /* -> */ data);
     }
 
-    public void copyToHost(float[] data, int count) {
+    public void copyToHost(int count, /* -> */ float[] data) {
         validateCount(count, data.length);
         validateCount(count, size());
         VectorNative._copyToHostFloat(requireHandle(), data, count);
@@ -100,7 +100,7 @@ public final class FloatVector extends VectorBase {
 
     public float[] toHostArray() {
         float[] data = new float[size()];
-        copyToHost(data);
+        copyToHost(/* -> */ data);
         return data;
     }
 
@@ -120,7 +120,7 @@ public final class FloatVector extends VectorBase {
         return new FloatVector(h, size);
     }
 
-    public void copyFromFloatVector(Span destSpan, FloatVector source, Span srcSpan, long streamHandle) {
+    public void copyFromFloatVector(/* <- */ Span destSpan, FloatVector source, Span srcSpan, long streamHandle) {
         Objects.requireNonNull(destSpan);
         Objects.requireNonNull(source);
         Objects.requireNonNull(srcSpan);
@@ -139,14 +139,14 @@ public final class FloatVector extends VectorBase {
     }
 
     @Override
-    public void copyRegionFrom(VectorBase source, Span srcSpan, Span destSpan, long streamHandle) {
+    public void copyRegionFrom(/* <- */ VectorBase source, Span srcSpan, Span destSpan, long streamHandle) {
         if (!(source instanceof FloatVector)) {
             throw new IllegalArgumentException("Source must be a FloatVector.");
         }
         this.copyFromFloatVector(destSpan, (FloatVector) source, srcSpan, streamHandle);
     }
 
-    public void setRegion(Span destSpan, FloatVector source, long streamHandle) {
+    public void setRegion(/* <- */ Span destSpan, FloatVector source, long streamHandle) {
         Objects.requireNonNull(destSpan);
         Objects.requireNonNull(source);
         if (source.size() == 0)
@@ -173,7 +173,7 @@ public final class FloatVector extends VectorBase {
      * setRegion 接收任意类型并在内部转换。Java 静态类型需显式重载，转换逻辑藏于此方法，
      * 使调用方（mapper.assembleX）能以统一 {@code setRegion(span, value, stream)} 模式调用。
      */
-    public void setRegion(Span destSpan, boolean[] srcData, long streamHandle) {
+    public void setRegion(/* <- */ Span destSpan, boolean[] srcData, long streamHandle) {
         Objects.requireNonNull(destSpan);
         Objects.requireNonNull(srcData);
 
@@ -194,7 +194,7 @@ public final class FloatVector extends VectorBase {
      * 设计原则第2条：同 {@link #setRegion(Span, boolean[], long)}，对应伪代码
      * {@code buf_x.setRegion("<-", dtSpan, dt, stream)} 的 long 参数情形。
      */
-    public void setRegion(Span destSpan, long srcValue, long streamHandle) {
+    public void setRegion(/* <- */ Span destSpan, long srcValue, long streamHandle) {
         Objects.requireNonNull(destSpan);
 
         int count = destSpan.getLength();
@@ -205,7 +205,7 @@ public final class FloatVector extends VectorBase {
         copyRegionFromHost(destSpan, floats, streamHandle);
     }
 
-    public void copyRegionFromHost(Span destSpan, float[] src_data, long streamHandle) {
+    public void copyRegionFromHost(/* <- */ Span destSpan, float[] src_data, long streamHandle) {
         Objects.requireNonNull(destSpan);
         Objects.requireNonNull(src_data);
 
@@ -223,7 +223,7 @@ public final class FloatVector extends VectorBase {
         VectorNative._copyRegionFromHostFloat(requireHandle(), destOffset, src_data, count, streamHandle);
     }
 
-    public void multiplyByScalar(float scalar, long streamHandle) {
+    public void multiplyByScalar(/* <- */ float scalar, long streamHandle) {
         if (size() > 0) {
             multiplyByScalar(scalar, new Span(0, size()) {}, streamHandle);
         }
@@ -236,7 +236,7 @@ public final class FloatVector extends VectorBase {
      * @param span         要操作的区间。
      * @param streamHandle CUDA 流句柄。
      */
-    public void multiplyByScalar(float scalar, Span span, long streamHandle) {
+    public void multiplyByScalar(/* <- */ float scalar, Span span, long streamHandle) {
         Objects.requireNonNull(span);
         long offset = span.getOffset();
         long length = span.getLength();
@@ -261,12 +261,12 @@ public final class FloatVector extends VectorBase {
      * @param bound 上界（独占）；bound<=0 时填 0。
      * @param seed  64 位种子（不同向量应传不同子种子，避免同尺寸向量得到相同随机模式）。
      */
-    public void fillRandom(float bound, long seed) {
+    public void fillRandom(/* <- */ float bound, long seed) {
         VectorNative._fillRandomFloat(requireHandle(), bound, seed);
     }
 
     @Override
-    protected void releaseResource() {
+    protected void releaseResource(/* <- */) {
         VectorNative._deleteVectorFloat(handle);
     }
 }

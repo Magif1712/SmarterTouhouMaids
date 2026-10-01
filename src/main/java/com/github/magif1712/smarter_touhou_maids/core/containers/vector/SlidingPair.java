@@ -59,7 +59,7 @@ public class SlidingPair<T extends VectorBase> implements Closeable {
      * <b>重要:</b> 调用此方法后，{@code suspension} 向量的状态将变为之前 {@code precipitate} 的状态，
      * 它现在是一个“空的”或“陈旧的”容器，可以安全地被下一个时间步的新数据覆写。
      */
-    public void slide() {
+    public void slide(/* <- */) {
         // java对于能"."出来的对象，才可以进行交换引用
         T temp = precipitate;
         precipitate = suspension;
@@ -76,7 +76,7 @@ public class SlidingPair<T extends VectorBase> implements Closeable {
      * @param target 操作的目标，SUSPENSION 或 PRECIPITATE。
      * @param source 新的向量数据，其所有权将被转移。
      */
-    public void move(Target target, T source) {
+    public void move(/* <- */ Target target, T source) {
         T destination = (target == Target.SUSPENSION) ? this.suspension : this.precipitate;
 
         if (source.size() != destination.size()) {
@@ -94,7 +94,7 @@ public class SlidingPair<T extends VectorBase> implements Closeable {
      * @param destSpan     目标区间
      * @param streamHandle CUDA 流句柄。
      */
-    public void copyRegionTo(Target target, T source, Span srcSpan, Span destSpan, long streamHandle) {
+    public void copyRegionTo(/* <- */ Target target, T source, Span srcSpan, Span destSpan, long streamHandle) {
         T destination = (target == Target.SUSPENSION) ? this.suspension : this.precipitate;
         destination.copyRegionFrom(source, srcSpan, destSpan, streamHandle);
     }
@@ -105,7 +105,7 @@ public class SlidingPair<T extends VectorBase> implements Closeable {
      *
      * @param streamHandle CUDA 流句柄。
      */
-    public void push(T source, Span srcSpan, Span destSpan, long streamHandle) {
+    public void push(/* <- */ T source, Span srcSpan, Span destSpan, long streamHandle) {
         copyRegionTo(Target.SUSPENSION, source, srcSpan, destSpan, streamHandle);
     }
 
@@ -116,7 +116,7 @@ public class SlidingPair<T extends VectorBase> implements Closeable {
      *
      * @throws IllegalArgumentException 如果 source 尺寸与 suspension 不匹配
      */
-    public void push(T source) {
+    public void push(/* <- */ T source) {
         move(Target.SUSPENSION, source);
     }
 

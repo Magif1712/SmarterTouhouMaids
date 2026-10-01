@@ -1,10 +1,10 @@
 package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui;
 
 import com.github.magif1712.smarter_touhou_maids.SmarterTouhouMaids;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Branch;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.ConceptTree;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Meta;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Node;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.Branch;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.ConceptTree;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.Meta;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.Node;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.ConfigGuiFactory;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.ConfigGuiIds;
 import net.minecraft.resources.ResourceLocation;
@@ -34,10 +34,10 @@ public final class DefaultConfigGuis {
 
         // === CONFIG_GUI 插槽：叶子层（GUI 选择不递归）===
         Node<ConfigGuiFactory> configGui = ConceptTree.builder().node(ConfigGuiIds.CONFIG_GUI);
-        configGui.addBranch(new Branch<>(
+        configGui.addBranch(/* <- */ new Branch<>(
                 defaultId,
                 (ConfigGuiFactory) AutoTaskConfigScreen::new,
                 new Meta("gui." + modId + ".config_gui.default", 0, modId)));
-        configGui.defaultBranch(defaultId);
+        configGui.defaultBranch(/* <- */ defaultId);
     }
 }

@@ -1,8 +1,8 @@
 package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.panels;
 
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.SmarterLayerWalker;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.debug.DebugPanelProvider;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.param.ParamOption;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.runtime.SmarterLayerWalker;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.debug.DebugPanelProvider;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.param.ParamOption;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.IConfigPanel;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.PanelContext;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.layout.ConfigRow;

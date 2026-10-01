@@ -1,10 +1,10 @@
 package com.github.magif1712.smarter_touhou_maids.features.ui;
 
 import com.github.magif1712.smarter_touhou_maids.features.maid.menu.AutoTaskConfigMenu;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Branch;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.ConceptTree;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.Node;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.tree.RegistrySnapshot;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.Branch;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.ConceptTree;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.Node;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.assembly.RegistrySnapshot;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.ConfigGuiFactory;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.ConfigGuiIds;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
@@ -77,7 +77,7 @@ public class GuiSelectorScreen extends AbstractContainerScreen<AutoTaskConfigMen
         // 当前选择（含默认回退）
         this.selectedId = GuiSelectionStore.INSTANCE.get(maid);
         if (this.selectedId == null || node.branch(this.selectedId) == null) {
-            this.selectedId = node.defaultBranch();
+            this.selectedId = node.defaultBranch(/* <- */ );
         }
         if (this.selectedId == null) {
             return;
@@ -132,7 +132,7 @@ public class GuiSelectorScreen extends AbstractContainerScreen<AutoTaskConfigMen
         }
         Branch<ConfigGuiFactory> branch = node.branch(this.selectedId);
         if (branch == null) {
-            ResourceLocation def = node.defaultBranch();
+            ResourceLocation def = node.defaultBranch(/* <- */ );
             branch = def != null ? node.branch(def) : null;
         }
         if (branch == null) {

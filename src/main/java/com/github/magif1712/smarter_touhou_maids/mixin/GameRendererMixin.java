@@ -1,6 +1,6 @@
 package com.github.magif1712.smarter_touhou_maids.mixin;
 
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.SmarterClientService;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.runtime.SmarterClientService;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import org.spongepowered.asm.mixin.Mixin;

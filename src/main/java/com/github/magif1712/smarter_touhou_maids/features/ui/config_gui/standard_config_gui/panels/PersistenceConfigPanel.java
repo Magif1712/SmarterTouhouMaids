@@ -1,7 +1,7 @@
 package com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.panels;
 
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.param.ParamOption;
-import com.github.magif1712.smarter_touhou_maids.features.smarter.agent.persistence.PersistenceConfigProvider;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.param.ParamOption;
+import com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.persistence.PersistenceConfigProvider;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.IConfigPanel;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.PanelContext;
 import com.github.magif1712.smarter_touhou_maids.features.ui.config_gui.standard_config_gui.layout.ConfigRow;
@@ -22,7 +22,7 @@ import java.util.List;
  * <p>
  * <b>统一参数管道</b>（真善美第2/4条）：本 Panel 不硬编码 label/读写逻辑——从
  * {@link PersistenceConfigProvider} 取 {@link ParamOption} 实例，用其 label/tooltip/
- * currentText/commitText 数据驱动渲染控件。配置存 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.agent.param.ParamStore}
+ * currentText/commitText 数据驱动渲染控件。配置存 {@link com.github.magif1712.smarter_touhou_maids.features.smarter.infrastructure.param.ParamStore}
  * （maid NBT，per-maid，随存档走）。
  * <p>
  * <b>两级开关分层</b>（C10 递归）：第一级"持久化开关"（总开关，控制终态 save）；
